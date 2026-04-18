@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -14,15 +19,17 @@ import (
 )
 
 const (
-	inventoryServiceAddress = "localhost:50051"
-	paymentServiceAddress   = "localhost:50052"
+	httpPort = "localhost:8080"
+
+	// inventoryServiceAddress = "localhost:50051"
+	// paymentServiceAddress   = "localhost:50052"
+	inventoryServiceAddress = "127.0.0.1:50051"
+	paymentServiceAddress   = "127.0.0.1:50052"
+
+	shutdownTimeout = 10 * time.Second
 )
 
 func main() {
-	// TODO: Настроить gRPC клиент с параметрами keepalive
-	// Подумайте, какие параметры стоит задать для gRPC клиента
-	// См. examples/week_1/GRPC_CONNECTIONS.md
-
 	// Создать gRPC соединение с InventoryService
 	inventoryConn, err := grpc.NewClient(inventoryServiceAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -47,9 +54,6 @@ func main() {
 		store,
 	)
 
-	// TODO: Сгенерировать код ogen из OpenAPI спецификации
-	// Команда: task ogen:gen
-
 	// Создать OpenAPI сервер
 	orderServer, err := orderHandler.SetupServer(h)
 	if err != nil {
@@ -57,23 +61,41 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: Настроить HTTP сервер с таймаутами
-	// Подумайте, какие таймауты стоит задать для production-ready сервера
-	// См. examples/week_1/HTTP_SERVER.md
-
-	// TODO: Реализовать graceful shutdown для HTTP сервера
-	// При получении сигнала SIGINT/SIGTERM сервер должен:
-	// 1. Перестать принимать новые соединения
-	// 2. Дождаться завершения текущих запросов (с таймаутом)
-	// 3. Закрыть gRPC соединения
-	// 4. Корректно завершить работу
-	// Подсказка: используйте signal.Notify и httpServer.Shutdown(ctx)
-
-	slog.Info("запуск OrderService", "port", 8080)
-
-	err = http.ListenAndServe(":8080", orderServer)
-	if err != nil {
-		slog.Error("ошибка запуска сервера", "error", err)
-		os.Exit(1)
+	// Настройка http server
+	server := &http.Server{
+		Addr:              httpPort,
+		Handler:           orderServer,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
+
+	// Запуск сервера
+	go func() {
+		slog.Info("http server запущен на порту", "port", httpPort)
+		listenServerErr := server.ListenAndServe()
+
+		if listenServerErr != nil && !errors.Is(listenServerErr, http.ErrServerClosed) {
+			slog.Error("ошибка запуска сервера", "error", listenServerErr)
+			os.Exit(1)
+		}
+	}()
+
+	// graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	slog.Info("завершение работы сервера")
+
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+
+	err = server.Shutdown(ctx)
+	if err != nil {
+		slog.Error("произошла ошибка при остановке сервера", "error", err)
+	}
+
+	slog.Info("сервер успешно остановлен")
 }
