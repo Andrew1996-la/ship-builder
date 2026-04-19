@@ -243,7 +243,7 @@ func payOrder(t *testing.T, orderUUID string, req *PayOrderRequest) (*PayOrderRe
 	return nil, resp
 }
 
-func cancelOrder(t *testing.T, orderUUID string) (*CancelOrderResponse, *http.Response) {
+func cancelOrder(t *testing.T, orderUUID string) *http.Response {
 	t.Helper()
 
 	httpReq, err := http.NewRequest(http.MethodPost, orderBaseURL()+"/api/v1/orders/"+orderUUID+"/cancel", nil)
@@ -256,10 +256,9 @@ func cancelOrder(t *testing.T, orderUUID string) (*CancelOrderResponse, *http.Re
 		var result CancelOrderResponse
 		err = json.NewDecoder(resp.Body).Decode(&result)
 		require.NoError(t, err)
-		return &result, resp
 	}
 
-	return nil, resp
+	return resp
 }
 
 // Тесты InventoryService (gRPC).
@@ -291,6 +290,7 @@ func TestInventory_GetPart_AllTypes(t *testing.T) {
 		{"Engine Ion B", EngineIonBUUID, EngineIonBPrice, inventoryv1.PartType_PART_TYPE_ENGINE},
 		{"Shield Energy", ShieldEnergyUUID, ShieldEnergyPrice, inventoryv1.PartType_PART_TYPE_SHIELD},
 		{"Weapon Laser", WeaponLaserUUID, WeaponLaserPrice, inventoryv1.PartType_PART_TYPE_WEAPON},
+		{"Hull Titanium", HullOutOfStockUUID, HullOutOfStockPrice, inventoryv1.PartType_PART_TYPE_HULL},
 	}
 
 	for _, tc := range testCases {
@@ -818,7 +818,7 @@ func TestOrder_Pay_AlreadyCancelled(t *testing.T) {
 	require.NotNil(t, createResult)
 
 	// Отменяем заказ
-	_, cancelResp := cancelOrder(t, createResult.OrderUUID)
+	cancelResp := cancelOrder(t, createResult.OrderUUID)
 	cancelResp.Body.Close()
 
 	// Пытаемся оплатить отменённый заказ — должна быть ошибка конфликта
@@ -840,8 +840,8 @@ func TestOrder_Cancel_Success(t *testing.T) {
 	require.NotNil(t, createResult)
 
 	// Отменяем заказ
-	_, resp := cancelOrder(t, createResult.OrderUUID)
-	defer resp.Body.Close()
+	resp := cancelOrder(t, createResult.OrderUUID)
+	resp.Body.Close()
 
 	testutil.AssertHTTPStatus(t, resp, http.StatusOK)
 }
@@ -857,7 +857,7 @@ func TestOrder_Cancel_VerifyStatusChange(t *testing.T) {
 	require.NotNil(t, createResult)
 
 	// Отменяем заказ
-	_, cancelResp := cancelOrder(t, createResult.OrderUUID)
+	cancelResp := cancelOrder(t, createResult.OrderUUID)
 	cancelResp.Body.Close()
 
 	// Получаем и проверяем статус changed to CANCELLED
@@ -869,7 +869,7 @@ func TestOrder_Cancel_VerifyStatusChange(t *testing.T) {
 }
 
 func TestOrder_Cancel_NotFound(t *testing.T) {
-	_, resp := cancelOrder(t, uuid.New().String())
+	resp := cancelOrder(t, uuid.New().String())
 	defer resp.Body.Close()
 
 	testutil.AssertHTTPStatus(t, resp, http.StatusNotFound)
@@ -891,7 +891,7 @@ func TestOrder_Cancel_AlreadyPaid(t *testing.T) {
 	payResp.Body.Close()
 
 	// Пытаемся отменить оплаченный заказ — должна быть ошибка конфликта
-	_, cancelResp := cancelOrder(t, createResult.OrderUUID)
+	cancelResp := cancelOrder(t, createResult.OrderUUID)
 	defer cancelResp.Body.Close()
 
 	testutil.AssertHTTPStatus(t, cancelResp, http.StatusConflict)
@@ -908,11 +908,11 @@ func TestOrder_Cancel_AlreadyCancelled(t *testing.T) {
 	require.NotNil(t, createResult)
 
 	// Отменяем заказ first time
-	_, cancelResp1 := cancelOrder(t, createResult.OrderUUID)
+	cancelResp1 := cancelOrder(t, createResult.OrderUUID)
 	cancelResp1.Body.Close()
 
 	// Пытаемся отменить повторно — должна быть ошибка конфликта
-	_, cancelResp2 := cancelOrder(t, createResult.OrderUUID)
+	cancelResp2 := cancelOrder(t, createResult.OrderUUID)
 	defer cancelResp2.Body.Close()
 
 	testutil.AssertHTTPStatus(t, cancelResp2, http.StatusConflict)
@@ -1061,7 +1061,7 @@ func TestOrder_FullLifecycle_CreateCancelGet(t *testing.T) {
 	assert.Equal(t, "PENDING_PAYMENT", order1.Status)
 
 	// 3. Отменяем заказ
-	_, cancelResp := cancelOrder(t, createResult.OrderUUID)
+	cancelResp := cancelOrder(t, createResult.OrderUUID)
 	cancelResp.Body.Close()
 
 	// 4. Получаем заказ — проверяем CANCELLED
