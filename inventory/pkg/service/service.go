@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"log/slog"
 	"sort"
 	"sync"
 
@@ -110,41 +109,13 @@ func (s *InventoryServer) GetPart(
 	ctx context.Context,
 	req *inventoryv1.GetPartRequest,
 ) (*inventoryv1.GetPartResponse, error) {
-	// 1. Проверить, что uuid не пустой → INVALID_ARGUMENT
-	if req.Uuid == "" {
-		return nil, status.Error(codes.InvalidArgument, "uuid обязателен")
-	}
-
-	// 2. Валидировать формат UUID → INVALID_ARGUMENT
-	parsedUUID, err := uuid.Parse(req.GetUuid())
+	part, err := getPartByUUID(s.parts, req.GetUuid())
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "неверный формат uuid: %s", req.GetUuid())
+		return nil, err
 	}
 
-	// 3. Найти деталь в map
-	s.mu.RLock()
-	part, ok := s.parts[parsedUUID]
-	s.mu.RUnlock()
-
-	// 4. Если не найдена → NOT_FOUND
-	if !ok {
-		return nil, status.Error(codes.NotFound, "деталь не наидена")
-	}
-
-	// 5. Преобразовать в inventoryv1.Part
-	p := &inventoryv1.Part{
-		Uuid:          part.UUID,
-		Name:          part.Name,
-		Description:   part.Description,
-		Price:         part.Price,
-		PartType:      part.PartType,
-		StockQuantity: part.StockQuantity,
-		CreatedAt:     part.CreatedAt,
-	}
-
-	// 6. Вернуть деталь
 	return &inventoryv1.GetPartResponse{
-		Part: p,
+		Part: part,
 	}, nil
 }
 
@@ -153,24 +124,37 @@ func (s *InventoryServer) ListParts(
 	ctx context.Context,
 	req *inventoryv1.ListPartsRequest,
 ) (*inventoryv1.ListPartsResponse, error) {
-	slog.Info("ListParts вызван", "uuids", req.GetUuids(), "part_type", req.GetPartType())
 	if len(req.GetUuids()) > 0 {
-		parts := make([]*inventoryv1.Part, 0, len(req.GetUuids()))
+		return filterByUUID(s, req)
+	}
 
-		for _, u := range req.Uuids {
-			parsedUUID, err := uuid.Parse(u)
-			if err != nil {
-				return nil, status.Errorf(codes.InvalidArgument, "неверный формат uuid: %s", u)
-			}
+	return filterByType(s, req)
+}
 
-			s.mu.RLock()
-			part, ok := s.parts[parsedUUID]
-			s.mu.RUnlock()
+func filterByUUID(s *InventoryServer, req *inventoryv1.ListPartsRequest) (*inventoryv1.ListPartsResponse, error) {
+	uuids := req.GetUuids()
 
-			if !ok {
-				return nil, status.Error(codes.NotFound, "деталь не наидена")
-			}
+	parts := make([]*inventoryv1.Part, 0, len(uuids))
 
+	for _, u := range uuids {
+		part, err := getPartByUUID(s.parts, u)
+		if err != nil {
+			return nil, err
+		}
+
+		parts = append(parts, part)
+	}
+
+	return &inventoryv1.ListPartsResponse{
+		Parts: parts,
+	}, nil
+}
+
+func filterByType(s *InventoryServer, req *inventoryv1.ListPartsRequest) (*inventoryv1.ListPartsResponse, error) {
+	parts := make([]*inventoryv1.Part, 0, len(s.parts))
+
+	for _, part := range s.parts {
+		if part.PartType == req.GetPartType() || req.GetPartType() == inventoryv1.PartType_PART_TYPE_UNSPECIFIED {
 			parts = append(parts, &inventoryv1.Part{
 				Uuid:          part.UUID,
 				Name:          part.Name,
@@ -181,39 +165,36 @@ func (s *InventoryServer) ListParts(
 				CreatedAt:     part.CreatedAt,
 			})
 		}
-
-		return &inventoryv1.ListPartsResponse{
-			Parts: parts,
-		}, nil
 	}
-	// 2. Иначе если part_type == UNSPECIFIED → вернуть все детали
-	s.mu.RLock()
-	parts := make([]*inventoryv1.Part, 0, len(s.parts))
 
-	for _, part := range s.parts {
-		if req.GetPartType() != inventoryv1.PartType_PART_TYPE_UNSPECIFIED &&
-			part.PartType != req.GetPartType() {
-			continue
-		}
-
-		parts = append(parts, &inventoryv1.Part{
-			Uuid:          part.UUID,
-			Name:          part.Name,
-			Description:   part.Description,
-			Price:         part.Price,
-			PartType:      part.PartType,
-			StockQuantity: part.StockQuantity,
-			CreatedAt:     part.CreatedAt,
-		})
-	}
-	s.mu.RUnlock()
-
-	// 3. Сортировка по имени
 	sort.Slice(parts, func(i, j int) bool {
 		return parts[i].Name < parts[j].Name
 	})
 
 	return &inventoryv1.ListPartsResponse{
 		Parts: parts,
+	}, nil
+}
+
+func getPartByUUID(parts map[uuid.UUID]Part, uuidStr string) (*inventoryv1.Part, error) {
+	parsedUUID, err := uuid.Parse(uuidStr)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "неверный формат uuid: %s", uuidStr)
+	}
+
+	part, ok := parts[parsedUUID]
+
+	if !ok {
+		return nil, status.Error(codes.NotFound, "деталь не найдена")
+	}
+
+	return &inventoryv1.Part{
+		Uuid:          part.UUID,
+		Name:          part.Name,
+		Description:   part.Description,
+		Price:         part.Price,
+		PartType:      part.PartType,
+		StockQuantity: part.StockQuantity,
+		CreatedAt:     part.CreatedAt,
 	}, nil
 }

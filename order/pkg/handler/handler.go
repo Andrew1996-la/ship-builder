@@ -181,12 +181,12 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderv1.CreateOrder
 			case codes.InvalidArgument:
 				return &orderv1.CreateOrderBadRequest{
 					Code:    http.StatusBadRequest,
-					Message: "некорректный UUID компонента",
+					Message: "некорректный UUID детали",
 				}, nil
 			case codes.NotFound:
 				return &orderv1.CreateOrderNotFound{
 					Code:    http.StatusNotFound,
-					Message: "компонент не найден",
+					Message: "деталь не найдена",
 				}, nil
 			case codes.DeadlineExceeded:
 				return &orderv1.CreateOrderInternalServerError{
@@ -206,35 +206,27 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderv1.CreateOrder
 		}, nil
 	}
 
-	partsByUuid := make(map[string]*inventoryv1.Part)
-	for _, part := range resp.Parts {
-		partsByUuid[part.Uuid] = part
+	if len(resp.Parts) != len(uuids) {
+		return &orderv1.CreateOrderNotFound{
+			Code:    http.StatusNotFound,
+			Message: "деталь не найдена",
+		}, nil
 	}
 
 	var totalPrice int64
-	for _, id := range uuids {
-		part, ok := partsByUuid[id]
-		if !ok {
-			return &orderv1.CreateOrderNotFound{
-				Code:    http.StatusNotFound,
-				Message: "компонент не найден",
-			}, nil
-		}
-
+	for _, part := range resp.Parts {
 		if part.StockQuantity <= 0 {
 			return &orderv1.CreateOrderConflict{
 				Code:    http.StatusConflict,
-				Message: "компонент отсутствует на складе",
+				Message: "деталь отсутствует на складе",
 			}, nil
 		}
 
 		totalPrice += part.Price
 	}
 
-	orderUuid := uuid.New()
-
 	order := Order{
-		OrderUUID:  orderUuid,
+		OrderUUID:  uuid.New(),
 		HullUUID:   req.HullUUID,
 		EngineUUID: req.EngineUUID,
 		ShieldUUID: shieldUUIDPtr,
@@ -260,7 +252,6 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderv1.PayOrderReques
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// 1. Найти заказ в store
 	h.store.mu.RLock()
 	order, ok := h.store.orders[params.OrderUUID]
 	h.store.mu.RUnlock()
@@ -272,14 +263,19 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderv1.PayOrderReques
 		}, nil
 	}
 
-	// 2. Проверить статус == PENDING_PAYMENT
-	if order.Status != "PENDING_PAYMENT" {
+	if order.Status == "PAID" {
 		return &orderv1.PayOrderConflict{
 			Code:    http.StatusConflict,
-			Message: "не верный статус заказа",
+			Message: "заказ уже оплачен",
 		}, nil
 	}
-	// 3. Вызвать h.paymentClient.PayOrder для обработки платежа
+
+	if order.Status == "CANCELLED" {
+		return &orderv1.PayOrderConflict{
+			Code:    http.StatusConflict,
+			Message: "заказ был отменен",
+		}, nil
+	}
 
 	grpcPaymentMethod, err := mapPaymentMethod(req.PaymentMethod)
 	if err != nil {
@@ -294,16 +290,33 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderv1.PayOrderReques
 		PaymentMethod: grpcPaymentMethod,
 	})
 	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			switch st.Code() {
+			case codes.InvalidArgument:
+				return &orderv1.PayOrderBadRequest{
+					Code:    http.StatusBadRequest,
+					Message: "невалидные данные платежа",
+				}, nil
+			case codes.DeadlineExceeded:
+				return &orderv1.PayOrderInternalServerError{
+					Code:    http.StatusInternalServerError,
+					Message: "таймаут при обращении к payment",
+				}, nil
+			default:
+				return &orderv1.PayOrderInternalServerError{
+					Code:    http.StatusInternalServerError,
+					Message: "внутренняя ошибка сервера",
+				}, nil
+			}
+		}
+
 		return &orderv1.PayOrderInternalServerError{
 			Code:    http.StatusInternalServerError,
 			Message: "внутренняя ошибка сервера",
 		}, nil
 	}
 
-	// 4. Обновить статус на PAID и сохранить transaction_uuid
-	order.Status = "PAID"
-
-	paymentMethod := string(req.PaymentMethod)
 	transactionUuid, err := uuid.Parse(res.TransactionUuid)
 	if err != nil {
 		return &orderv1.PayOrderInternalServerError{
@@ -312,6 +325,9 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderv1.PayOrderReques
 		}, nil
 	}
 
+	order.Status = "PAID"
+	paymentMethod := string(req.PaymentMethod)
+
 	order.PaymentMethod = &paymentMethod
 	order.TransactionUUID = &transactionUuid
 
@@ -319,7 +335,6 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderv1.PayOrderReques
 	h.store.orders[params.OrderUUID] = order
 	h.store.mu.Unlock()
 
-	// 5. Вернуть transaction_uuid
 	return &orderv1.PayOrderResponse{
 		TransactionUUID: transactionUuid,
 	}, nil
@@ -328,7 +343,6 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderv1.PayOrderReques
 // CancelOrder реализует операцию cancelOrder
 // POST /api/v1/orders/{order_uuid}/cancel.
 func (h *OrderHandler) CancelOrder(_ context.Context, params orderv1.CancelOrderParams) (orderv1.CancelOrderRes, error) {
-	// 1. Найти заказ в store
 	h.store.mu.RLock()
 	order, ok := h.store.orders[params.OrderUUID]
 	h.store.mu.RUnlock()
@@ -340,21 +354,25 @@ func (h *OrderHandler) CancelOrder(_ context.Context, params orderv1.CancelOrder
 		}, nil
 	}
 
-	// 2. Проверить статус == PENDING_PAYMENT
-	if order.Status != "PENDING_PAYMENT" {
+	if order.Status == "PAID" {
 		return &orderv1.CancelOrderConflict{
 			Code:    http.StatusConflict,
-			Message: "не верный статус заказа",
+			Message: "заказ уже оплачен",
 		}, nil
 	}
 
-	// 3. Обновить статус на CANCELLED
+	if order.Status == "CANCELLED" {
+		return &orderv1.CancelOrderConflict{
+			Code:    http.StatusConflict,
+			Message: "заказ был отменен",
+		}, nil
+	}
+
 	order.Status = "CANCELLED"
 
 	h.store.mu.Lock()
 	h.store.orders[params.OrderUUID] = order
 	h.store.mu.Unlock()
 
-	// 4. Вернуть success
 	return &orderv1.CancelOrderResponse{}, nil
 }
