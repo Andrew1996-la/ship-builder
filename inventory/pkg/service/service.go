@@ -110,7 +110,6 @@ func (s *InventoryServer) GetPart(
 	ctx context.Context,
 	req *inventoryv1.GetPartRequest,
 ) (*inventoryv1.GetPartResponse, error) {
-	// TODO: Реализовать метод
 	// 1. Проверить, что uuid не пустой → INVALID_ARGUMENT
 	if req.Uuid == "" {
 		return nil, status.Error(codes.InvalidArgument, "uuid обязателен")

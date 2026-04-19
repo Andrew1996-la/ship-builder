@@ -135,7 +135,7 @@ func (h *OrderHandler) GetOrder(_ context.Context, params orderv1.GetOrderParams
 }
 
 // CreateOrder реализует операцию createOrder
-// POST /api/v1/orders
+// POST /api/v1/orders.
 func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (orderv1.CreateOrderRes, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -182,6 +182,11 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderv1.CreateOrder
 				return &orderv1.CreateOrderBadRequest{
 					Code:    http.StatusBadRequest,
 					Message: "некорректный UUID компонента",
+				}, nil
+			case codes.NotFound:
+				return &orderv1.CreateOrderNotFound{
+					Code:    http.StatusNotFound,
+					Message: "компонент не найден",
 				}, nil
 			case codes.DeadlineExceeded:
 				return &orderv1.CreateOrderInternalServerError{
@@ -250,7 +255,7 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderv1.CreateOrder
 }
 
 // PayOrder реализует операцию payOrder
-// POST /api/v1/orders/{order_uuid}/pay
+// POST /api/v1/orders/{order_uuid}/pay.
 func (h *OrderHandler) PayOrder(ctx context.Context, req *orderv1.PayOrderRequest, params orderv1.PayOrderParams) (orderv1.PayOrderRes, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -321,7 +326,7 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderv1.PayOrderReques
 }
 
 // CancelOrder реализует операцию cancelOrder
-// POST /api/v1/orders/{order_uuid}/cancel
+// POST /api/v1/orders/{order_uuid}/cancel.
 func (h *OrderHandler) CancelOrder(_ context.Context, params orderv1.CancelOrderParams) (orderv1.CancelOrderRes, error) {
 	// 1. Найти заказ в store
 	h.store.mu.RLock()

@@ -21,8 +21,6 @@ import (
 const (
 	httpPort = "localhost:8080"
 
-	// inventoryServiceAddress = "localhost:50051"
-	// paymentServiceAddress   = "localhost:50052"
 	inventoryServiceAddress = "127.0.0.1:50051"
 	paymentServiceAddress   = "127.0.0.1:50052"
 
@@ -42,7 +40,6 @@ func main() {
 	paymentConn, err := grpc.NewClient(paymentServiceAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		slog.Error("не удалось подключиться к PaymentService", "error", err)
-		os.Exit(1)
 	}
 	defer paymentConn.Close()
 
@@ -58,7 +55,6 @@ func main() {
 	orderServer, err := orderHandler.SetupServer(h)
 	if err != nil {
 		slog.Error("ошибка создания сервера OpenAPI", "error", err)
-		os.Exit(1)
 	}
 
 	// Настройка http server
@@ -78,7 +74,6 @@ func main() {
 
 		if listenServerErr != nil && !errors.Is(listenServerErr, http.ErrServerClosed) {
 			slog.Error("ошибка запуска сервера", "error", listenServerErr)
-			os.Exit(1)
 		}
 	}()
 
