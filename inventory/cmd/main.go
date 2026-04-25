@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
+	"github.com/Andrew1996-la/ship-builder/inventory/internal/interceptor"
 	svc "github.com/Andrew1996-la/ship-builder/inventory/pkg/service"
 	inventoryv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/inventory/v1"
 )
@@ -35,6 +36,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(interceptor.ErrorInterceptor),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionIdle:     grpcMaxConnectionIdle,
 			MaxConnectionAge:      grpcMaxConnectionAge,
