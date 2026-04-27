@@ -12,7 +12,9 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
-	svc "github.com/Andrew1996-la/ship-builder/payment/pkg/service"
+	paymentapi "github.com/Andrew1996-la/ship-builder/payment/internal/api/payment/v1"
+	"github.com/Andrew1996-la/ship-builder/payment/internal/interceptor"
+	paymentservice "github.com/Andrew1996-la/ship-builder/payment/internal/service/payment"
 	paymentv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/payment/v1"
 )
 
@@ -35,6 +37,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(interceptor.ErrorInterceptor),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionIdle:     grpcMaxConnectionIdle,
 			MaxConnectionAge:      grpcMaxConnectionAge,
@@ -48,7 +51,10 @@ func main() {
 		}),
 	)
 
-	paymentv1.RegisterPaymentServiceServer(grpcServer, &svc.PaymentServer{})
+	service := paymentservice.New()
+	api := paymentapi.New(service)
+
+	paymentv1.RegisterPaymentServiceServer(grpcServer, api)
 
 	// Включаем reflection для postman/grpcurl
 	reflection.Register(grpcServer)
