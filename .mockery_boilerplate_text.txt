@@ -1,3 +1,2 @@
-// TODO: Поменяй имя на своё
-// Code generated for student service
-// © Student 2026.
+// Code generated for Soborev service
+// © Soborev 2026.
