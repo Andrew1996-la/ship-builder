@@ -12,7 +12,7 @@ import (
 
 func (a *api) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (orderv1.CreateOrderRes, error) {
 	info := model.CreateOrderInfo{
-		HullUUID:   req.EngineUUID,
+		HullUUID:   req.HullUUID,
 		EngineUUID: req.EngineUUID,
 	}
 

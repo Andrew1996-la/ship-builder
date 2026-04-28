@@ -10,7 +10,7 @@ import (
 func (s *service) Pay(ctx context.Context, info model.PayOrderInfo) (model.Order, error) {
 	order, err := s.repository.Get(ctx, info.OrderUUID)
 	if err != nil {
-		return model.Order{}, nil
+		return model.Order{}, err
 	}
 
 	if order.Status == model.OrderStatusPaid {
@@ -23,7 +23,7 @@ func (s *service) Pay(ctx context.Context, info model.PayOrderInfo) (model.Order
 
 	transactionUuid, err := s.paymentClient.PayOrder(ctx, info.OrderUUID, info.PaymentMethod)
 	if err != nil {
-		return model.Order{}, nil
+		return model.Order{}, err
 	}
 
 	order.Status = model.OrderStatusPaid
@@ -32,7 +32,7 @@ func (s *service) Pay(ctx context.Context, info model.PayOrderInfo) (model.Order
 
 	err = s.repository.Update(ctx, order)
 	if err != nil {
-		return model.Order{}, nil
+		return model.Order{}, err
 	}
 
 	return order, nil
