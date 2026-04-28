@@ -8,7 +8,7 @@ import (
 	inventoryv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/inventory/v1"
 )
 
-func (a *api) List(ctx context.Context, req *inventoryv1.ListPartsRequest) (*inventoryv1.ListPartsResponse, error) {
+func (a *api) ListParts(ctx context.Context, req *inventoryv1.ListPartsRequest) (*inventoryv1.ListPartsResponse, error) {
 	filter := model.PartFilter{
 		UUIDs:    req.GetUuids(),
 		PartType: converter.ProtoPartTypeToModel(req.GetPartType()),
@@ -28,4 +28,8 @@ func (a *api) List(ctx context.Context, req *inventoryv1.ListPartsRequest) (*inv
 	return &inventoryv1.ListPartsResponse{
 		Parts: respParts,
 	}, nil
+}
+
+func (a *api) List(ctx context.Context, req *inventoryv1.ListPartsRequest) (*inventoryv1.ListPartsResponse, error) {
+	return a.ListParts(ctx, req)
 }

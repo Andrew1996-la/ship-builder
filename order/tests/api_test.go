@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/google/uuid"
@@ -16,12 +17,17 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-	invSvc "github.com/Andrew1996-la/ship-builder/inventory/pkg/service"
-	orderHandler "github.com/Andrew1996-la/ship-builder/order/pkg/handler"
+	orderapi "github.com/Andrew1996-la/ship-builder/order/internal/api/order/v1"
+	grpcclientInventory "github.com/Andrew1996-la/ship-builder/order/internal/client/grpc/inventory/v1"
+	grpcclientPayment "github.com/Andrew1996-la/ship-builder/order/internal/client/grpc/payment/v1"
+	orderrepo "github.com/Andrew1996-la/ship-builder/order/internal/repository/order"
+	orderservice "github.com/Andrew1996-la/ship-builder/order/internal/service/order"
 	"github.com/Andrew1996-la/ship-builder/order/tests/testutil"
-	paySvc "github.com/Andrew1996-la/ship-builder/payment/pkg/service"
+	orderv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/openapi/order/v1"
 	inventoryv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/inventory/v1"
 	paymentv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/payment/v1"
 )
@@ -58,6 +64,153 @@ var (
 	ts              *httptest.Server
 )
 
+type inventoryTestServer struct {
+	inventoryv1.UnimplementedInventoryServiceServer
+	parts map[string]*inventoryv1.Part
+}
+
+func newInventoryTestServer() *inventoryTestServer {
+	now := timestamppb.Now()
+
+	return &inventoryTestServer{
+		parts: map[string]*inventoryv1.Part{
+			HullAluminumUUID: {
+				Uuid:          HullAluminumUUID,
+				Name:          "Алюминиевый корпус",
+				Description:   "Лёгкий корпус для небольших кораблей",
+				Price:         HullAluminumPrice,
+				PartType:      inventoryv1.PartType_PART_TYPE_HULL,
+				StockQuantity: 10,
+				CreatedAt:     now,
+			},
+			HullTitaniumUUID: {
+				Uuid:          HullTitaniumUUID,
+				Name:          "Титановый корпус",
+				Description:   "Прочный корпус для средних кораблей",
+				Price:         HullTitaniumPrice,
+				PartType:      inventoryv1.PartType_PART_TYPE_HULL,
+				StockQuantity: 5,
+				CreatedAt:     now,
+			},
+			EngineIonCUUID: {
+				Uuid:          EngineIonCUUID,
+				Name:          "Ионный двигатель C",
+				Description:   "Базовый ионный двигатель класса C",
+				Price:         EngineIonCPrice,
+				PartType:      inventoryv1.PartType_PART_TYPE_ENGINE,
+				StockQuantity: 8,
+				CreatedAt:     now,
+			},
+			EngineIonBUUID: {
+				Uuid:          EngineIonBUUID,
+				Name:          "Ионный двигатель B",
+				Description:   "Улучшенный ионный двигатель класса B",
+				Price:         EngineIonBPrice,
+				PartType:      inventoryv1.PartType_PART_TYPE_ENGINE,
+				StockQuantity: 3,
+				CreatedAt:     now,
+			},
+			ShieldEnergyUUID: {
+				Uuid:          ShieldEnergyUUID,
+				Name:          "Энергетический щит",
+				Description:   "Стандартный энергетический щит",
+				Price:         ShieldEnergyPrice,
+				PartType:      inventoryv1.PartType_PART_TYPE_SHIELD,
+				StockQuantity: 6,
+				CreatedAt:     now,
+			},
+			WeaponLaserUUID: {
+				Uuid:          WeaponLaserUUID,
+				Name:          "Лазерная пушка",
+				Description:   "Точная лазерная пушка",
+				Price:         WeaponLaserPrice,
+				PartType:      inventoryv1.PartType_PART_TYPE_WEAPON,
+				StockQuantity: 7,
+				CreatedAt:     now,
+			},
+			HullOutOfStockUUID: {
+				Uuid:          HullOutOfStockUUID,
+				Name:          "Плазменный корпус",
+				Description:   "Прочный корпус для больших кораблей",
+				Price:         HullOutOfStockPrice,
+				PartType:      inventoryv1.PartType_PART_TYPE_HULL,
+				StockQuantity: 0,
+				CreatedAt:     now,
+			},
+		},
+	}
+}
+
+func (s *inventoryTestServer) GetPart(_ context.Context, req *inventoryv1.GetPartRequest) (*inventoryv1.GetPartResponse, error) {
+	part, err := s.getPart(req.GetUuid())
+	if err != nil {
+		return nil, err
+	}
+
+	return &inventoryv1.GetPartResponse{Part: part}, nil
+}
+
+func (s *inventoryTestServer) ListParts(_ context.Context, req *inventoryv1.ListPartsRequest) (*inventoryv1.ListPartsResponse, error) {
+	if len(req.GetUuids()) > 0 {
+		parts := make([]*inventoryv1.Part, 0, len(req.GetUuids()))
+
+		for _, rawUUID := range req.GetUuids() {
+			part, err := s.getPart(rawUUID)
+			if err != nil {
+				return nil, err
+			}
+
+			parts = append(parts, part)
+		}
+
+		return &inventoryv1.ListPartsResponse{Parts: parts}, nil
+	}
+
+	parts := make([]*inventoryv1.Part, 0, len(s.parts))
+	for _, part := range s.parts {
+		if req.GetPartType() == inventoryv1.PartType_PART_TYPE_UNSPECIFIED || part.GetPartType() == req.GetPartType() {
+			parts = append(parts, part)
+		}
+	}
+
+	sort.Slice(parts, func(i, j int) bool {
+		return parts[i].GetName() < parts[j].GetName()
+	})
+
+	return &inventoryv1.ListPartsResponse{Parts: parts}, nil
+}
+
+func (s *inventoryTestServer) getPart(rawUUID string) (*inventoryv1.Part, error) {
+	if _, err := uuid.Parse(rawUUID); err != nil {
+		return nil, status.Error(codes.InvalidArgument, "неверный формат UUID")
+	}
+
+	part, ok := s.parts[rawUUID]
+	if !ok {
+		return nil, status.Error(codes.NotFound, "деталь не найдена")
+	}
+
+	return part, nil
+}
+
+type paymentTestServer struct {
+	paymentv1.UnimplementedPaymentServiceServer
+}
+
+func (s *paymentTestServer) PayOrder(_ context.Context, req *paymentv1.PayOrderRequest) (*paymentv1.PayOrderResponse, error) {
+	if req.GetPaymentMethod() == paymentv1.PaymentMethod_PAYMENT_METHOD_UNSPECIFIED {
+		return nil, status.Error(codes.InvalidArgument, "payment_method обязателен")
+	}
+
+	if _, err := uuid.Parse(req.GetOrderUuid()); err != nil {
+		return nil, status.Error(codes.InvalidArgument, "неверный формат UUID заказа")
+	}
+
+	return &paymentv1.PayOrderResponse{
+		TransactionUuid: uuid.New().String(),
+	}, nil
+}
+
 func invBufDialer(context.Context, string) (net.Conn, error) {
 	return invLis.Dial()
 }
@@ -76,7 +229,7 @@ func TestMain(m *testing.M) {
 	// 1. Inventory gRPC через bufconn
 	invLis = bufconn.Listen(bufSize)
 	invGRPCServer := grpc.NewServer()
-	inventoryv1.RegisterInventoryServiceServer(invGRPCServer, invSvc.NewInventoryServer())
+	inventoryv1.RegisterInventoryServiceServer(invGRPCServer, newInventoryTestServer())
 	go func() {
 		if invServeErr := invGRPCServer.Serve(invLis); invServeErr != nil {
 			panic(invServeErr)
@@ -95,7 +248,7 @@ func TestMain(m *testing.M) {
 	// 2. Payment gRPC через bufconn
 	payLis = bufconn.Listen(bufSize)
 	payGRPCServer := grpc.NewServer()
-	paymentv1.RegisterPaymentServiceServer(payGRPCServer, &paySvc.PaymentServer{})
+	paymentv1.RegisterPaymentServiceServer(payGRPCServer, &paymentTestServer{})
 	go func() {
 		if payServeErr := payGRPCServer.Serve(payLis); payServeErr != nil {
 			panic(payServeErr)
@@ -112,9 +265,13 @@ func TestMain(m *testing.M) {
 	paymentClient = paymentv1.NewPaymentServiceClient(payConn)
 
 	// 3. Order HTTP через httptest
-	store := orderHandler.NewOrderStore()
-	h := orderHandler.NewOrderHandler(inventoryClient, paymentClient, store)
-	orderServer, err := orderHandler.SetupServer(h)
+	repository := orderrepo.New()
+	inventoryClientAdapter := grpcclientInventory.New(inventoryClient)
+	paymentClientAdapter := grpcclientPayment.New(paymentClient)
+	service := orderservice.New(repository, inventoryClientAdapter, paymentClientAdapter)
+	api := orderapi.New(service)
+
+	orderServer, err := orderv1.NewServer(api)
 	if err != nil {
 		panic(err)
 	}
