@@ -26,21 +26,21 @@ func TestPay(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "success card",
+			name: "успешная оплата картой",
 			info: model.PayRequest{
 				OrderUUID:     orderUUID,
 				PaymentMethod: model.PaymentMethodCard,
 			},
 		},
 		{
-			name: "success sbp",
+			name: "успешная оплата через СБП",
 			info: model.PayRequest{
 				OrderUUID:     orderUUID,
 				PaymentMethod: model.PaymentMethodSBP,
 			},
 		},
 		{
-			name: "invalid payment method",
+			name: "неверный метод оплаты",
 			info: model.PayRequest{
 				OrderUUID:     orderUUID,
 				PaymentMethod: model.PaymentMethodUnspecified,

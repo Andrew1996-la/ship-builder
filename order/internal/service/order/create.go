@@ -2,6 +2,7 @@ package order
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,7 +16,7 @@ func (s *service) Create(ctx context.Context, info model.CreateOrderInfo) (model
 
 	parts, err := s.inventoryClient.ListParts(ctx, partUuids)
 	if err != nil {
-		return model.Order{}, err
+		return model.Order{}, fmt.Errorf("получить детали для создания заказа: %w", err)
 	}
 
 	if len(parts) != len(partUuids) {
@@ -45,7 +46,7 @@ func (s *service) Create(ctx context.Context, info model.CreateOrderInfo) (model
 
 	err = s.repository.Create(ctx, order)
 	if err != nil {
-		return model.Order{}, err
+		return model.Order{}, fmt.Errorf("сохранить созданный заказ: %w", err)
 	}
 
 	return order, nil

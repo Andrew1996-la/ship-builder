@@ -45,7 +45,7 @@ func TestList(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name:   "success",
+			name:   "успешный сценарий",
 			filter: filter,
 			setupMock: func(repository *mocks.PartRepository) {
 				repository.EXPECT().
@@ -55,7 +55,7 @@ func TestList(t *testing.T) {
 			expected: expectedParts,
 		},
 		{
-			name:   "repository error",
+			name:   "ошибка репозитория",
 			filter: filter,
 			setupMock: func(repository *mocks.PartRepository) {
 				repository.EXPECT().

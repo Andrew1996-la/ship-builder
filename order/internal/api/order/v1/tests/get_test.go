@@ -47,7 +47,7 @@ func TestGetOrder(t *testing.T) {
 		expectedErr  error
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Get(ctx, orderUUID).
@@ -56,7 +56,7 @@ func TestGetOrder(t *testing.T) {
 			expectedType: &orderv1.OrderDto{},
 		},
 		{
-			name: "not found",
+			name: "не найдено",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Get(ctx, orderUUID).
@@ -65,7 +65,7 @@ func TestGetOrder(t *testing.T) {
 			expectedType: &orderv1.GetOrderNotFound{},
 		},
 		{
-			name: "service error",
+			name: "ошибка сервиса",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Get(ctx, orderUUID).

@@ -30,7 +30,7 @@ func TestPayOrder(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			req: &paymentv1.PayOrderRequest{
 				OrderUuid:     orderUUID.String(),
 				PaymentMethod: paymentv1.PaymentMethod_PAYMENT_METHOD_CARD,
@@ -49,7 +49,7 @@ func TestPayOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid order uuid",
+			name: "неверный UUID заказа",
 			req: &paymentv1.PayOrderRequest{
 				OrderUuid:     "bad-uuid",
 				PaymentMethod: paymentv1.PaymentMethod_PAYMENT_METHOD_CARD,
@@ -60,7 +60,7 @@ func TestPayOrder(t *testing.T) {
 			expectedErr: errs.ErrInvalidOrderUUID,
 		},
 		{
-			name: "service error",
+			name: "ошибка сервиса",
 			req: &paymentv1.PayOrderRequest{
 				OrderUuid:     orderUUID.String(),
 				PaymentMethod: paymentv1.PaymentMethod_PAYMENT_METHOD_UNSPECIFIED,

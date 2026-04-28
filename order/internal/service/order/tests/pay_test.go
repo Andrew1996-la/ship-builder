@@ -40,7 +40,7 @@ func TestPay(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
 				repository.EXPECT().
 					Get(ctx, orderUUID).
@@ -61,7 +61,7 @@ func TestPay(t *testing.T) {
 			},
 		},
 		{
-			name: "order not found",
+			name: "заказ не найден",
 			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
 				repository.EXPECT().
 					Get(ctx, orderUUID).
@@ -70,7 +70,7 @@ func TestPay(t *testing.T) {
 			expectedErr: errs.ErrOrderNotFound,
 		},
 		{
-			name: "order already paid",
+			name: "заказ уже оплачен",
 			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
 				paidOrder := pendingOrder
 				paidOrder.Status = model.OrderStatusPaid
@@ -82,7 +82,7 @@ func TestPay(t *testing.T) {
 			expectedErr: errs.ErrOrderAlreadyPaid,
 		},
 		{
-			name: "order cancelled",
+			name: "заказ отменён",
 			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
 				cancelledOrder := pendingOrder
 				cancelledOrder.Status = model.OrderStatusCancelled
@@ -94,7 +94,7 @@ func TestPay(t *testing.T) {
 			expectedErr: errs.ErrOrderCancelled,
 		},
 		{
-			name: "payment client error",
+			name: "ошибка клиента оплаты",
 			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
 				repository.EXPECT().
 					Get(ctx, orderUUID).
@@ -107,7 +107,7 @@ func TestPay(t *testing.T) {
 			expectedErr: errs.ErrOrderCancelled,
 		},
 		{
-			name: "repository update error",
+			name: "ошибка обновления в репозитории",
 			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
 				repository.EXPECT().
 					Get(ctx, orderUUID).

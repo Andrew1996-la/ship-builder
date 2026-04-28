@@ -42,7 +42,7 @@ func TestGet(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			req: &inventoryv1.GetPartRequest{
 				Uuid: partUUID,
 			},
@@ -54,7 +54,7 @@ func TestGet(t *testing.T) {
 			expected: converter.ModelToProtoPart(expectedPart),
 		},
 		{
-			name: "service error",
+			name: "ошибка сервиса",
 			req: &inventoryv1.GetPartRequest{
 				Uuid: partUUID,
 			},

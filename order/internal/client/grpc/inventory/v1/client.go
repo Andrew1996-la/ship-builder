@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -30,7 +31,7 @@ func (c *Client) ListParts(ctx context.Context, uuids []uuid.UUID) ([]model.Part
 		Uuids: rawUUIDs,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("получить детали из сервиса склада: %w", err)
 	}
 
 	parts := make([]model.Part, 0, len(resp.GetParts()))
@@ -38,7 +39,7 @@ func (c *Client) ListParts(ctx context.Context, uuids []uuid.UUID) ([]model.Part
 	for _, part := range resp.GetParts() {
 		id, err := uuid.Parse(part.GetUuid())
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("разобрать UUID детали из ответа сервиса склада: %w", err)
 		}
 
 		parts = append(parts, model.Part{

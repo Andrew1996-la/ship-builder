@@ -46,7 +46,7 @@ func TestCreate(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			setupMock: func(repository *mocks.Repository, inventoryClient *mocks.InventoryClient) {
 				inventoryClient.EXPECT().
 					ListParts(ctx, partUUIDs).
@@ -69,7 +69,7 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		{
-			name: "inventory client error",
+			name: "ошибка клиента склада",
 			setupMock: func(repository *mocks.Repository, inventoryClient *mocks.InventoryClient) {
 				inventoryClient.EXPECT().
 					ListParts(ctx, partUUIDs).
@@ -78,7 +78,7 @@ func TestCreate(t *testing.T) {
 			expectedErr: errs.ErrPartNotFound,
 		},
 		{
-			name: "part not found",
+			name: "деталь не найдена",
 			setupMock: func(repository *mocks.Repository, inventoryClient *mocks.InventoryClient) {
 				inventoryClient.EXPECT().
 					ListParts(ctx, partUUIDs).
@@ -87,7 +87,7 @@ func TestCreate(t *testing.T) {
 			expectedErr: errs.ErrPartNotFound,
 		},
 		{
-			name: "out of stock",
+			name: "нет на складе",
 			setupMock: func(repository *mocks.Repository, inventoryClient *mocks.InventoryClient) {
 				outOfStockParts := append([]model.Part(nil), parts...)
 				outOfStockParts[2].StockQuantity = 0
@@ -99,7 +99,7 @@ func TestCreate(t *testing.T) {
 			expectedErr: errs.ErrOutOfStock,
 		},
 		{
-			name: "repository error",
+			name: "ошибка репозитория",
 			setupMock: func(repository *mocks.Repository, inventoryClient *mocks.InventoryClient) {
 				inventoryClient.EXPECT().
 					ListParts(ctx, partUUIDs).

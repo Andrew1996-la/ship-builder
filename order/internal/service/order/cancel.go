@@ -2,6 +2,7 @@ package order
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -27,7 +28,7 @@ func (s *service) Cancel(ctx context.Context, orderUuid uuid.UUID) (model.Order,
 
 	err = s.repository.Update(ctx, order)
 	if err != nil {
-		return model.Order{}, err
+		return model.Order{}, fmt.Errorf("сохранить отменённый заказ: %w", err)
 	}
 
 	return order, nil

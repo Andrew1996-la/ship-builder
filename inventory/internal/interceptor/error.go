@@ -28,12 +28,12 @@ func ErrorInterceptor(
 func mapError(err error) error {
 	switch {
 	case errors.Is(err, errs.ErrInvalidUUID):
-		return status.Error(codes.InvalidArgument, "invalid uuid")
+		return status.Error(codes.InvalidArgument, "неверный формат UUID")
 
 	case errors.Is(err, errs.ErrPartNotFound):
-		return status.Error(codes.NotFound, "part not found")
+		return status.Error(codes.NotFound, "деталь не найдена")
 
 	default:
-		return status.Error(codes.Internal, "internal error")
+		return status.Error(codes.Internal, "внутренняя ошибка сервиса")
 	}
 }

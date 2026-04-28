@@ -2,6 +2,7 @@ package order
 
 import (
 	"context"
+	"fmt"
 
 	errs "github.com/Andrew1996-la/ship-builder/order/internal/errors"
 	"github.com/Andrew1996-la/ship-builder/order/internal/model"
@@ -10,7 +11,7 @@ import (
 func (s *service) Pay(ctx context.Context, info model.PayOrderInfo) (model.Order, error) {
 	order, err := s.repository.Get(ctx, info.OrderUUID)
 	if err != nil {
-		return model.Order{}, err
+		return model.Order{}, fmt.Errorf("получить заказ для оплаты: %w", err)
 	}
 
 	if order.Status == model.OrderStatusPaid {
@@ -23,7 +24,7 @@ func (s *service) Pay(ctx context.Context, info model.PayOrderInfo) (model.Order
 
 	transactionUuid, err := s.paymentClient.PayOrder(ctx, info.OrderUUID, info.PaymentMethod)
 	if err != nil {
-		return model.Order{}, err
+		return model.Order{}, fmt.Errorf("оплатить заказ: %w", err)
 	}
 
 	order.Status = model.OrderStatusPaid
@@ -32,7 +33,7 @@ func (s *service) Pay(ctx context.Context, info model.PayOrderInfo) (model.Order
 
 	err = s.repository.Update(ctx, order)
 	if err != nil {
-		return model.Order{}, err
+		return model.Order{}, fmt.Errorf("сохранить оплаченный заказ: %w", err)
 	}
 
 	return order, nil

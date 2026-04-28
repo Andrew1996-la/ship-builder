@@ -28,7 +28,7 @@ func TestCancelOrder(t *testing.T) {
 		expectedErr  error
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Cancel(ctx, orderUUID).
@@ -37,7 +37,7 @@ func TestCancelOrder(t *testing.T) {
 			expectedType: &orderv1.CancelOrderResponse{},
 		},
 		{
-			name: "not found",
+			name: "не найдено",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Cancel(ctx, orderUUID).
@@ -46,7 +46,7 @@ func TestCancelOrder(t *testing.T) {
 			expectedType: &orderv1.CancelOrderNotFound{},
 		},
 		{
-			name: "already paid",
+			name: "уже оплачено",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Cancel(ctx, orderUUID).
@@ -55,7 +55,7 @@ func TestCancelOrder(t *testing.T) {
 			expectedType: &orderv1.CancelOrderConflict{},
 		},
 		{
-			name: "cancelled",
+			name: "отменено",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Cancel(ctx, orderUUID).
@@ -64,7 +64,7 @@ func TestCancelOrder(t *testing.T) {
 			expectedType: &orderv1.CancelOrderConflict{},
 		},
 		{
-			name: "service error",
+			name: "ошибка сервиса",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Cancel(ctx, orderUUID).

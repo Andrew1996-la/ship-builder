@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -29,12 +30,12 @@ func (c *Client) PayOrder(
 		PaymentMethod: toProtoPaymentMethod(paymentMethod),
 	})
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, fmt.Errorf("оплатить заказ через сервис оплаты: %w", err)
 	}
 
 	transactionUUID, err := uuid.Parse(resp.GetTransactionUuid())
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, fmt.Errorf("разобрать UUID транзакции из ответа сервиса оплаты: %w", err)
 	}
 
 	return transactionUUID, nil

@@ -33,7 +33,7 @@ func TestPayOrder(t *testing.T) {
 		expectedType any
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Pay(ctx, expectedInfo).
@@ -45,7 +45,7 @@ func TestPayOrder(t *testing.T) {
 			expectedType: &orderv1.PayOrderResponse{},
 		},
 		{
-			name: "not found",
+			name: "не найдено",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Pay(ctx, expectedInfo).
@@ -54,7 +54,7 @@ func TestPayOrder(t *testing.T) {
 			expectedType: &orderv1.PayOrderNotFound{},
 		},
 		{
-			name: "already paid",
+			name: "уже оплачено",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Pay(ctx, expectedInfo).
@@ -63,7 +63,7 @@ func TestPayOrder(t *testing.T) {
 			expectedType: &orderv1.PayOrderConflict{},
 		},
 		{
-			name: "cancelled",
+			name: "отменено",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Pay(ctx, expectedInfo).
@@ -72,7 +72,7 @@ func TestPayOrder(t *testing.T) {
 			expectedType: &orderv1.PayOrderConflict{},
 		},
 		{
-			name: "internal error",
+			name: "внутренняя ошибка",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Pay(ctx, expectedInfo).

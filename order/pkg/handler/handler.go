@@ -26,7 +26,7 @@ func mapPaymentMethod(pm orderv1.PaymentMethod) (paymentv1.PaymentMethod, error)
 	case orderv1.PaymentMethodINVESTORMONEY:
 		return paymentv1.PaymentMethod_PAYMENT_METHOD_INVESTOR_MONEY, nil
 	default:
-		return 0, status.Error(codes.InvalidArgument, "не поддерживаемый payment_method")
+		return 0, status.Error(codes.InvalidArgument, "неподдерживаемый payment_method")
 	}
 }
 

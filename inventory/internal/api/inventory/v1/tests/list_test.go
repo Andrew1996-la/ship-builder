@@ -53,7 +53,7 @@ func TestList(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			req:  req,
 			setupMock: func(service *mocks.PartService) {
 				service.EXPECT().
@@ -63,7 +63,7 @@ func TestList(t *testing.T) {
 			expectedLen: 1,
 		},
 		{
-			name: "service error",
+			name: "ошибка сервиса",
 			req:  req,
 			setupMock: func(service *mocks.PartService) {
 				service.EXPECT().

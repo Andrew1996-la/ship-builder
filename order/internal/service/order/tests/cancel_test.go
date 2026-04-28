@@ -38,7 +38,7 @@ func TestCancel(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			setupMock: func(repository *mocks.Repository) {
 				repository.EXPECT().
 					Get(ctx, orderUUID).
@@ -53,7 +53,7 @@ func TestCancel(t *testing.T) {
 			},
 		},
 		{
-			name: "order not found",
+			name: "заказ не найден",
 			setupMock: func(repository *mocks.Repository) {
 				repository.EXPECT().
 					Get(ctx, orderUUID).
@@ -62,7 +62,7 @@ func TestCancel(t *testing.T) {
 			expectedErr: errs.ErrOrderNotFound,
 		},
 		{
-			name: "order already paid",
+			name: "заказ уже оплачен",
 			setupMock: func(repository *mocks.Repository) {
 				paidOrder := pendingOrder
 				paidOrder.Status = model.OrderStatusPaid
@@ -74,7 +74,7 @@ func TestCancel(t *testing.T) {
 			expectedErr: errs.ErrOrderAlreadyPaid,
 		},
 		{
-			name: "order cancelled",
+			name: "заказ отменён",
 			setupMock: func(repository *mocks.Repository) {
 				cancelledOrder := pendingOrder
 				cancelledOrder.Status = model.OrderStatusCancelled
@@ -86,7 +86,7 @@ func TestCancel(t *testing.T) {
 			expectedErr: errs.ErrOrderCancelled,
 		},
 		{
-			name: "repository update error",
+			name: "ошибка обновления в репозитории",
 			setupMock: func(repository *mocks.Repository) {
 				repository.EXPECT().
 					Get(ctx, orderUUID).

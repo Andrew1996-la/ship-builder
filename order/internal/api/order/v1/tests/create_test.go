@@ -45,7 +45,7 @@ func TestCreateOrder(t *testing.T) {
 		expectedType any
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Create(ctx, expectedInfo).
@@ -57,7 +57,7 @@ func TestCreateOrder(t *testing.T) {
 			expectedType: &orderv1.CreateOrderResponse{},
 		},
 		{
-			name: "part not found",
+			name: "деталь не найдена",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Create(ctx, expectedInfo).
@@ -66,7 +66,7 @@ func TestCreateOrder(t *testing.T) {
 			expectedType: &orderv1.CreateOrderNotFound{},
 		},
 		{
-			name: "out of stock",
+			name: "нет на складе",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Create(ctx, expectedInfo).
@@ -75,7 +75,7 @@ func TestCreateOrder(t *testing.T) {
 			expectedType: &orderv1.CreateOrderConflict{},
 		},
 		{
-			name: "internal error",
+			name: "внутренняя ошибка",
 			setupMock: func(service *mocks.OrderService) {
 				service.EXPECT().
 					Create(ctx, expectedInfo).

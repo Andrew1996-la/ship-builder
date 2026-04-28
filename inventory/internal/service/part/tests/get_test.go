@@ -39,7 +39,7 @@ func TestGet(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "success",
+			name: "успешный сценарий",
 			setupMock: func(repository *mocks.PartRepository) {
 				repository.EXPECT().
 					Get(ctx, partUUID).
@@ -48,7 +48,7 @@ func TestGet(t *testing.T) {
 			expected: expectedPart,
 		},
 		{
-			name: "repository error",
+			name: "ошибка репозитория",
 			setupMock: func(repository *mocks.PartRepository) {
 				repository.EXPECT().
 					Get(ctx, partUUID).
