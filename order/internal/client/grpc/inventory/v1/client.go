@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/Andrew1996-la/ship-builder/order/internal/client/grpc/inventory/v1/converter"
 	"github.com/Andrew1996-la/ship-builder/order/internal/model"
 	inventoryv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/inventory/v1"
 )
@@ -21,33 +22,16 @@ func New(client inventoryv1.InventoryServiceClient) *Client {
 }
 
 func (c *Client) ListParts(ctx context.Context, uuids []uuid.UUID) ([]model.Part, error) {
-	rawUUIDs := make([]string, 0, len(uuids))
-
-	for _, id := range uuids {
-		rawUUIDs = append(rawUUIDs, id.String())
-	}
-
 	resp, err := c.client.ListParts(ctx, &inventoryv1.ListPartsRequest{
-		Uuids: rawUUIDs,
+		Uuids: converter.UUIDsToRaw(uuids),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("получить детали из сервиса склада: %w", err)
 	}
 
-	parts := make([]model.Part, 0, len(resp.GetParts()))
-
-	for _, part := range resp.GetParts() {
-		id, err := uuid.Parse(part.GetUuid())
-		if err != nil {
-			return nil, fmt.Errorf("разобрать UUID детали из ответа сервиса склада: %w", err)
-		}
-
-		parts = append(parts, model.Part{
-			UUID:          id,
-			Name:          part.GetName(),
-			Price:         part.GetPrice(),
-			StockQuantity: part.GetStockQuantity(),
-		})
+	parts, err := converter.ProtoPartsToModel(resp.GetParts())
+	if err != nil {
+		return nil, fmt.Errorf("преобразовать ответ сервиса склада: %w", err)
 	}
 
 	return parts, nil
