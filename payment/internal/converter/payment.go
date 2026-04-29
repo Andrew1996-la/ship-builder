@@ -9,7 +9,7 @@ import (
 	paymentv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/payment/v1"
 )
 
-func ProtoToModelPaymentMethod(paymentMethod paymentv1.PaymentMethod) model.PaymentMethod {
+func ToModelPaymentMethod(paymentMethod paymentv1.PaymentMethod) model.PaymentMethod {
 	switch paymentMethod {
 	case paymentv1.PaymentMethod_PAYMENT_METHOD_CARD:
 		return model.PaymentMethodCard
@@ -24,7 +24,7 @@ func ProtoToModelPaymentMethod(paymentMethod paymentv1.PaymentMethod) model.Paym
 	}
 }
 
-func PayOrderRequestToModel(req *paymentv1.PayOrderRequest) (model.PayRequest, error) {
+func ToModelPayRequest(req *paymentv1.PayOrderRequest) (model.PayRequest, error) {
 	orderUuid, err := uuid.Parse(req.GetOrderUuid())
 	if err != nil {
 		return model.PayRequest{}, fmt.Errorf("разобрать UUID заказа: %w", err)
@@ -32,11 +32,11 @@ func PayOrderRequestToModel(req *paymentv1.PayOrderRequest) (model.PayRequest, e
 
 	return model.PayRequest{
 		OrderUUID:     orderUuid,
-		PaymentMethod: ProtoToModelPaymentMethod(req.GetPaymentMethod()),
+		PaymentMethod: ToModelPaymentMethod(req.GetPaymentMethod()),
 	}, nil
 }
 
-func ModelToPayOrderResponse(payment model.Payment) *paymentv1.PayOrderResponse {
+func ToProtoPayOrderResponse(payment model.Payment) *paymentv1.PayOrderResponse {
 	return &paymentv1.PayOrderResponse{
 		TransactionUuid: payment.TransactionUUID.String(),
 	}

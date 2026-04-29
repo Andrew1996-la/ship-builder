@@ -51,7 +51,7 @@ func TestGet(t *testing.T) {
 					Get(ctx, partUUID).
 					Return(expectedPart, nil)
 			},
-			expected: converter.ModelToProtoPart(expectedPart),
+			expected: converter.ToProtoPart(expectedPart),
 		},
 		{
 			name: "ошибка сервиса",

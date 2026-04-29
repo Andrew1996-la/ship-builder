@@ -7,7 +7,7 @@ import (
 	"github.com/Andrew1996-la/ship-builder/inventory/internal/repository/record"
 )
 
-func RepositoryToModel(part record.Part) (model.Part, error) {
+func ToModelPart(part record.Part) (model.Part, error) {
 	uuid, err := uuid.Parse(part.UUID)
 	if err != nil {
 		return model.Part{}, err
@@ -24,7 +24,7 @@ func RepositoryToModel(part record.Part) (model.Part, error) {
 	}, nil
 }
 
-func ModelToRepository(part model.Part) (record.Part, error) {
+func ToRepoPart(part model.Part) (record.Part, error) {
 	return record.Part{
 		UUID:          part.UUID.String(),
 		Name:          part.Name,

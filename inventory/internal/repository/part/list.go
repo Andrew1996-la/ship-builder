@@ -36,7 +36,7 @@ func (r *repository) listByUUIDs(uuids []string) ([]model.Part, error) {
 			return nil, errs.ErrPartNotFound
 		}
 
-		modelPart, err := converter.RepositoryToModel(part)
+		modelPart, err := converter.ToModelPart(part)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +54,7 @@ func (r *repository) listByType(partType model.PartType) ([]model.Part, error) {
 	parts := make([]model.Part, 0, len(r.parts))
 
 	for _, part := range r.parts {
-		modelPart, err := converter.RepositoryToModel(part)
+		modelPart, err := converter.ToModelPart(part)
 		if err != nil {
 			return nil, err
 		}

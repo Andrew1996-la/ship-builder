@@ -5,7 +5,7 @@ import (
 	"github.com/Andrew1996-la/ship-builder/order/internal/repository/record"
 )
 
-func ModelToRepository(order model.Order) record.Order {
+func ToRepoOrder(order model.Order) record.Order {
 	var paymentMethod *string
 	if order.PaymentMethod != nil {
 		val := string(*order.PaymentMethod)
@@ -26,7 +26,7 @@ func ModelToRepository(order model.Order) record.Order {
 	}
 }
 
-func RepositoryToModel(order record.Order) model.Order {
+func ToModelOrder(order record.Order) model.Order {
 	var paymentMethod *model.PaymentMethod
 	if order.PaymentMethod != nil {
 		val := model.PaymentMethod(*order.PaymentMethod)

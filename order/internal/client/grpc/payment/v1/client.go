@@ -28,13 +28,13 @@ func (c *Client) PayOrder(
 ) (uuid.UUID, error) {
 	resp, err := c.client.PayOrder(ctx, &paymentv1.PayOrderRequest{
 		OrderUuid:     orderUUID.String(),
-		PaymentMethod: converter.ModelPaymentMethodToProto(paymentMethod),
+		PaymentMethod: converter.ToProtoPaymentMethod(paymentMethod),
 	})
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("оплатить заказ через сервис оплаты: %w", err)
 	}
 
-	transactionUUID, err := converter.ProtoTransactionUUIDToModel(resp)
+	transactionUUID, err := converter.ToModelTransactionUUID(resp)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("преобразовать ответ сервиса оплаты: %w", err)
 	}

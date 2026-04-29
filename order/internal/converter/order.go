@@ -5,7 +5,7 @@ import (
 	orderv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/openapi/order/v1"
 )
 
-func ModelToDTO(order model.Order) *orderv1.OrderDto {
+func ToDTO(order model.Order) *orderv1.OrderDto {
 	var shieldUUID orderv1.OptNilUUID
 	if order.ShieldUUID != nil {
 		shieldUUID = orderv1.NewOptNilUUID(*order.ShieldUUID)

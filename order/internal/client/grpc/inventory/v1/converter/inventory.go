@@ -9,7 +9,7 @@ import (
 	inventoryv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/inventory/v1"
 )
 
-func UUIDsToRaw(uuids []uuid.UUID) []string {
+func ToRawUUIDs(uuids []uuid.UUID) []string {
 	rawUUIDs := make([]string, 0, len(uuids))
 
 	for _, id := range uuids {
@@ -19,11 +19,11 @@ func UUIDsToRaw(uuids []uuid.UUID) []string {
 	return rawUUIDs
 }
 
-func ProtoPartsToModel(parts []*inventoryv1.Part) ([]model.Part, error) {
+func ToModelParts(parts []*inventoryv1.Part) ([]model.Part, error) {
 	modelParts := make([]model.Part, 0, len(parts))
 
 	for _, part := range parts {
-		modelPart, err := ProtoPartToModel(part)
+		modelPart, err := ToModelPart(part)
 		if err != nil {
 			return nil, err
 		}
@@ -34,7 +34,7 @@ func ProtoPartsToModel(parts []*inventoryv1.Part) ([]model.Part, error) {
 	return modelParts, nil
 }
 
-func ProtoPartToModel(part *inventoryv1.Part) (model.Part, error) {
+func ToModelPart(part *inventoryv1.Part) (model.Part, error) {
 	id, err := uuid.Parse(part.GetUuid())
 	if err != nil {
 		return model.Part{}, fmt.Errorf("разобрать UUID детали: %w", err)

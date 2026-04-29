@@ -29,5 +29,5 @@ func (r *repository) Get(
 		return model.Part{}, errs.ErrPartNotFound
 	}
 
-	return converter.RepositoryToModel(part)
+	return converter.ToModelPart(part)
 }

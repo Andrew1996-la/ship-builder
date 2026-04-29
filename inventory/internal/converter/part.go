@@ -7,19 +7,19 @@ import (
 	inventoryv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/inventory/v1"
 )
 
-func ModelToProtoPart(part model.Part) *inventoryv1.Part {
+func ToProtoPart(part model.Part) *inventoryv1.Part {
 	return &inventoryv1.Part{
 		Uuid:          part.UUID.String(),
 		Name:          part.Name,
 		Description:   part.Description,
 		Price:         part.Price,
-		PartType:      ModelToProtoPartType(part.PartType),
+		PartType:      ToProtoPartType(part.PartType),
 		StockQuantity: part.StockQuantity,
 		CreatedAt:     timestamppb.New(part.CreatedAt),
 	}
 }
 
-func ModelToProtoPartType(partType model.PartType) inventoryv1.PartType {
+func ToProtoPartType(partType model.PartType) inventoryv1.PartType {
 	switch partType {
 	case model.PartTypeHull:
 		return inventoryv1.PartType_PART_TYPE_HULL
@@ -34,7 +34,7 @@ func ModelToProtoPartType(partType model.PartType) inventoryv1.PartType {
 	}
 }
 
-func ProtoPartTypeToModel(partType inventoryv1.PartType) model.PartType {
+func ToModelPartType(partType inventoryv1.PartType) model.PartType {
 	switch partType {
 	case inventoryv1.PartType_PART_TYPE_HULL:
 		return model.PartTypeHull

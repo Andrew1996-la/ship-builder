@@ -11,7 +11,7 @@ import (
 func (a *api) ListParts(ctx context.Context, req *inventoryv1.ListPartsRequest) (*inventoryv1.ListPartsResponse, error) {
 	filter := model.PartFilter{
 		UUIDs:    req.GetUuids(),
-		PartType: converter.ProtoPartTypeToModel(req.GetPartType()),
+		PartType: converter.ToModelPartType(req.GetPartType()),
 	}
 
 	parts, err := a.partService.List(ctx, filter)
@@ -22,7 +22,7 @@ func (a *api) ListParts(ctx context.Context, req *inventoryv1.ListPartsRequest) 
 	respParts := make([]*inventoryv1.Part, 0, len(parts))
 
 	for _, p := range parts {
-		respParts = append(respParts, converter.ModelToProtoPart(p))
+		respParts = append(respParts, converter.ToProtoPart(p))
 	}
 
 	return &inventoryv1.ListPartsResponse{

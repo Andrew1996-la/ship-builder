@@ -12,7 +12,7 @@ func (a *api) PayOrder(
 	ctx context.Context,
 	req *paymentv1.PayOrderRequest,
 ) (*paymentv1.PayOrderResponse, error) {
-	info, err := converter.PayOrderRequestToModel(req)
+	info, err := converter.ToModelPayRequest(req)
 	if err != nil {
 		return nil, errs.ErrInvalidOrderUUID
 	}
@@ -22,5 +22,5 @@ func (a *api) PayOrder(
 		return nil, err
 	}
 
-	return converter.ModelToPayOrderResponse(payment), nil
+	return converter.ToProtoPayOrderResponse(payment), nil
 }

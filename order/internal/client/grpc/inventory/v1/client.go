@@ -27,13 +27,13 @@ func New(client inventoryv1.InventoryServiceClient) *Client {
 
 func (c *Client) ListParts(ctx context.Context, uuids []uuid.UUID) ([]model.Part, error) {
 	resp, err := c.client.ListParts(ctx, &inventoryv1.ListPartsRequest{
-		Uuids: converter.UUIDsToRaw(uuids),
+		Uuids: converter.ToRawUUIDs(uuids),
 	})
 	if err != nil {
 		return nil, mapListPartsError(err)
 	}
 
-	parts, err := converter.ProtoPartsToModel(resp.GetParts())
+	parts, err := converter.ToModelParts(resp.GetParts())
 	if err != nil {
 		return nil, fmt.Errorf("преобразовать ответ сервиса склада: %w", err)
 	}

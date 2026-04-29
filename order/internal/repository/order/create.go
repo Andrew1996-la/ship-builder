@@ -11,6 +11,6 @@ func (r *repository) Create(ctx context.Context, order model.Order) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.orders[order.OrderUUID] = converter.ModelToRepository(order)
+	r.orders[order.OrderUUID] = converter.ToRepoOrder(order)
 	return nil
 }

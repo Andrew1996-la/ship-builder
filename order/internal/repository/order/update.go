@@ -16,7 +16,7 @@ func (r *repository) Update(ctx context.Context, order model.Order) error {
 		return errs.ErrOrderNotFound
 	}
 
-	r.orders[order.OrderUUID] = converter.ModelToRepository(order)
+	r.orders[order.OrderUUID] = converter.ToRepoOrder(order)
 
 	return nil
 }
