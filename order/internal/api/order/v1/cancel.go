@@ -29,7 +29,10 @@ func (a *api) CancelOrder(ctx context.Context, params orderv1.CancelOrderParams)
 				Message: "заказ уже отменён",
 			}, nil
 		default:
-			return nil, err
+			return &orderv1.CancelOrderInternalServerError{
+				Code:    http.StatusInternalServerError,
+				Message: "внутренняя ошибка",
+			}, nil
 		}
 	}
 

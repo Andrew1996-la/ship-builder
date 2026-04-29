@@ -17,6 +17,16 @@ import (
 	"github.com/Andrew1996-la/ship-builder/order/internal/service/order/mocks"
 )
 
+type paymentClientFunc func(ctx context.Context, orderUUID uuid.UUID, paymentMethod model.PaymentMethod) (string, error)
+
+func (f paymentClientFunc) PayOrder(
+	ctx context.Context,
+	orderUUID uuid.UUID,
+	paymentMethod model.PaymentMethod,
+) (string, error) {
+	return f(ctx, orderUUID, paymentMethod)
+}
+
 func TestPay(t *testing.T) {
 	t.Parallel()
 
@@ -36,19 +46,15 @@ func TestPay(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		setupMock   func(repository *mocks.Repository, paymentClient *mocks.PaymentClient)
+		setupMock   func(repository *mocks.Repository) paymentClientFunc
 		expectedErr error
 	}{
 		{
 			name: "успешный сценарий",
-			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
+			setupMock: func(repository *mocks.Repository) paymentClientFunc {
 				repository.EXPECT().
 					Get(ctx, orderUUID).
 					Return(pendingOrder, nil)
-
-				paymentClient.EXPECT().
-					PayOrder(ctx, orderUUID, paymentMethod).
-					Return(transactionUUID, nil)
 
 				repository.EXPECT().
 					Update(ctx, mock.MatchedBy(func(order model.Order) bool {
@@ -58,68 +64,99 @@ func TestPay(t *testing.T) {
 							order.Status == model.OrderStatusPaid
 					})).
 					Return(nil)
+
+				return func(
+					ctx context.Context,
+					actualOrderUUID uuid.UUID,
+					actualPaymentMethod model.PaymentMethod,
+				) (string, error) {
+					assert.Equal(t, orderUUID, actualOrderUUID)
+					assert.Equal(t, paymentMethod, actualPaymentMethod)
+
+					return transactionUUID.String(), nil
+				}
 			},
 		},
 		{
 			name: "заказ не найден",
-			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
+			setupMock: func(repository *mocks.Repository) paymentClientFunc {
 				repository.EXPECT().
 					Get(ctx, orderUUID).
 					Return(model.Order{}, errs.ErrOrderNotFound)
+
+				return nil
 			},
 			expectedErr: errs.ErrOrderNotFound,
 		},
 		{
 			name: "заказ уже оплачен",
-			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
+			setupMock: func(repository *mocks.Repository) paymentClientFunc {
 				paidOrder := pendingOrder
 				paidOrder.Status = model.OrderStatusPaid
 
 				repository.EXPECT().
 					Get(ctx, orderUUID).
 					Return(paidOrder, nil)
+
+				return nil
 			},
 			expectedErr: errs.ErrOrderAlreadyPaid,
 		},
 		{
 			name: "заказ отменён",
-			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
+			setupMock: func(repository *mocks.Repository) paymentClientFunc {
 				cancelledOrder := pendingOrder
 				cancelledOrder.Status = model.OrderStatusCancelled
 
 				repository.EXPECT().
 					Get(ctx, orderUUID).
 					Return(cancelledOrder, nil)
+
+				return nil
 			},
 			expectedErr: errs.ErrOrderCancelled,
 		},
 		{
 			name: "ошибка клиента оплаты",
-			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
+			setupMock: func(repository *mocks.Repository) paymentClientFunc {
 				repository.EXPECT().
 					Get(ctx, orderUUID).
 					Return(pendingOrder, nil)
 
-				paymentClient.EXPECT().
-					PayOrder(ctx, orderUUID, paymentMethod).
-					Return(uuid.Nil, errs.ErrOrderCancelled)
+				return func(
+					ctx context.Context,
+					actualOrderUUID uuid.UUID,
+					actualPaymentMethod model.PaymentMethod,
+				) (string, error) {
+					assert.Equal(t, orderUUID, actualOrderUUID)
+					assert.Equal(t, paymentMethod, actualPaymentMethod)
+
+					return "", errs.ErrOrderCancelled
+				}
 			},
 			expectedErr: errs.ErrOrderCancelled,
 		},
 		{
 			name: "ошибка обновления в репозитории",
-			setupMock: func(repository *mocks.Repository, paymentClient *mocks.PaymentClient) {
+			setupMock: func(repository *mocks.Repository) paymentClientFunc {
 				repository.EXPECT().
 					Get(ctx, orderUUID).
 					Return(pendingOrder, nil)
 
-				paymentClient.EXPECT().
-					PayOrder(ctx, orderUUID, paymentMethod).
-					Return(transactionUUID, nil)
-
 				repository.EXPECT().
 					Update(ctx, mock.AnythingOfType("model.Order")).
 					Return(errs.ErrOrderNotFound)
+
+				return func(
+					ctx context.Context,
+					actualOrderUUID uuid.UUID,
+					actualPaymentMethod model.PaymentMethod,
+				) (string, error) {
+					assert.Equal(t, orderUUID, actualOrderUUID)
+					assert.Equal(t, paymentMethod, actualPaymentMethod)
+
+					return transactionUUID.String(), nil
+				}
 			},
 			expectedErr: errs.ErrOrderNotFound,
 		},
@@ -133,8 +170,7 @@ func TestPay(t *testing.T) {
 
 			repository := mocks.NewRepository(t)
 			inventoryClient := mocks.NewInventoryClient(t)
-			paymentClient := mocks.NewPaymentClient(t)
-			tt.setupMock(repository, paymentClient)
+			paymentClient := tt.setupMock(repository)
 
 			service := orderservice.New(repository, inventoryClient, paymentClient)
 

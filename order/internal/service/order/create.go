@@ -24,12 +24,10 @@ func (s *service) Create(ctx context.Context, info model.CreateOrderInfo) (model
 	}
 
 	var totalPrice int64
-
 	for _, part := range parts {
 		if part.StockQuantity <= 0 {
 			return model.Order{}, errs.ErrOutOfStock
 		}
-
 		totalPrice += part.Price
 	}
 

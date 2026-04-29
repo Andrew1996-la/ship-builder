@@ -2,13 +2,14 @@ package tests
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	inventoryapi "github.com/Andrew1996-la/ship-builder/inventory/internal/api/inventory/v1"
 	"github.com/Andrew1996-la/ship-builder/inventory/internal/api/inventory/v1/mocks"
@@ -46,11 +47,13 @@ func TestList(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		req         *inventoryv1.ListPartsRequest
-		setupMock   func(service *mocks.PartService)
-		expectedLen int
-		expectedErr error
+		name         string
+		req          *inventoryv1.ListPartsRequest
+		setupMock    func(service *mocks.PartService)
+		expectedLen  int
+		expectedErr  error
+		expectedCode codes.Code
+		expectedMsg  string
 	}{
 		{
 			name: "успешный сценарий",
@@ -70,7 +73,9 @@ func TestList(t *testing.T) {
 					List(ctx, expectedFilter).
 					Return(nil, errs.ErrPartNotFound)
 			},
-			expectedErr: errs.ErrPartNotFound,
+			expectedErr:  errs.ErrPartNotFound,
+			expectedCode: codes.NotFound,
+			expectedMsg:  "детали не найдены",
 		},
 	}
 
@@ -89,7 +94,8 @@ func TestList(t *testing.T) {
 
 			if tt.expectedErr != nil {
 				require.Error(t, err)
-				assert.True(t, errors.Is(err, tt.expectedErr))
+				assert.Equal(t, tt.expectedCode, status.Code(err))
+				assert.Equal(t, tt.expectedMsg, status.Convert(err).Message())
 				assert.Nil(t, resp)
 
 				return

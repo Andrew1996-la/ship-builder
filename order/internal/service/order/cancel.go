@@ -28,7 +28,7 @@ func (s *service) Cancel(ctx context.Context, orderUuid uuid.UUID) (model.Order,
 
 	err = s.repository.Update(ctx, order)
 	if err != nil {
-		return model.Order{}, fmt.Errorf("сохранить отменённый заказ: %w", err)
+		return model.Order{}, fmt.Errorf("отменить заказ: %w", err)
 	}
 
 	return order, nil

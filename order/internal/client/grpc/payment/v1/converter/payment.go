@@ -1,10 +1,6 @@
 package converter
 
 import (
-	"fmt"
-
-	"github.com/google/uuid"
-
 	"github.com/Andrew1996-la/ship-builder/order/internal/model"
 	paymentv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/payment/v1"
 )
@@ -22,13 +18,4 @@ func ToProtoPaymentMethod(paymentMethod model.PaymentMethod) paymentv1.PaymentMe
 	default:
 		return paymentv1.PaymentMethod_PAYMENT_METHOD_UNSPECIFIED
 	}
-}
-
-func ToModelTransactionUUID(resp *paymentv1.PayOrderResponse) (uuid.UUID, error) {
-	transactionUUID, err := uuid.Parse(resp.GetTransactionUuid())
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("разобрать UUID транзакции: %w", err)
-	}
-
-	return transactionUUID, nil
 }

@@ -9,14 +9,19 @@ import (
 )
 
 func (r *repository) Update(ctx context.Context, order model.Order) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	_, ok := r.orders[order.OrderUUID]
+	r.mu.RUnlock()
 
-	if _, ok := r.orders[order.OrderUUID]; !ok {
+	if !ok {
 		return errs.ErrOrderNotFound
 	}
 
-	r.orders[order.OrderUUID] = converter.ToRepoOrder(order)
+	repoOrder := converter.ToRepoOrder(order)
+
+	r.mu.Lock()
+	r.orders[order.OrderUUID] = repoOrder
+	r.mu.Unlock()
 
 	return nil
 }

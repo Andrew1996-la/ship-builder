@@ -24,18 +24,23 @@ func (s *service) Pay(ctx context.Context, info model.PayOrderInfo) (model.Order
 		return model.Order{}, errs.ErrOrderCancelled
 	}
 
-	transactionUuid, err := s.paymentClient.PayOrder(ctx, info.OrderUUID, info.PaymentMethod)
+	transactionUUIDRaw, err := s.paymentClient.PayOrder(ctx, info.OrderUUID, info.PaymentMethod)
 	if err != nil {
 		return model.Order{}, fmt.Errorf("оплатить заказ: %w", err)
 	}
 
-	if transactionUuid == uuid.Nil {
-		return model.Order{}, fmt.Errorf("пустой transaction uuid")
+	transactionUUID, err := uuid.Parse(transactionUUIDRaw)
+	if err != nil {
+		return model.Order{}, fmt.Errorf("разобрать UUID транзакции оплаты: %w", err)
+	}
+
+	if transactionUUID == uuid.Nil {
+		return model.Order{}, fmt.Errorf("пустой UUID транзакции оплаты")
 	}
 
 	order.Status = model.OrderStatusPaid
 	order.PaymentMethod = &info.PaymentMethod
-	order.TransactionUUID = &transactionUuid
+	order.TransactionUUID = &transactionUUID
 
 	err = s.repository.Update(ctx, order)
 	if err != nil {

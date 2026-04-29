@@ -8,4 +8,5 @@ var (
 	ErrOrderCancelled   = errors.New("заказ отменён")
 	ErrPartNotFound     = errors.New("деталь не найдена")
 	ErrOutOfStock       = errors.New("деталь отсутствует на складе")
+	ErrPaymentFailed    = errors.New("ошибка оплаты")
 )

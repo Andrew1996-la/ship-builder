@@ -51,6 +51,7 @@ func main() {
 	)
 	if err != nil {
 		slog.Error("не удалось подключиться к PaymentService", "error", err)
+		os.Exit(1)
 	}
 
 	defer paymentConn.Close()

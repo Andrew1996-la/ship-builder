@@ -25,7 +25,6 @@ func TestCancelOrder(t *testing.T) {
 		name         string
 		setupMock    func(service *mocks.OrderService)
 		expectedType any
-		expectedErr  error
 	}{
 		{
 			name: "успешный сценарий",
@@ -70,7 +69,7 @@ func TestCancelOrder(t *testing.T) {
 					Cancel(ctx, orderUUID).
 					Return(model.Order{}, assert.AnError)
 			},
-			expectedErr: assert.AnError,
+			expectedType: &orderv1.CancelOrderInternalServerError{},
 		},
 	}
 
@@ -86,13 +85,6 @@ func TestCancelOrder(t *testing.T) {
 			api := orderapi.New(service)
 
 			resp, err := api.CancelOrder(ctx, orderv1.CancelOrderParams{OrderUUID: orderUUID})
-
-			if tt.expectedErr != nil {
-				require.ErrorIs(t, err, tt.expectedErr)
-				assert.Nil(t, resp)
-
-				return
-			}
 
 			require.NoError(t, err)
 			require.IsType(t, tt.expectedType, resp)

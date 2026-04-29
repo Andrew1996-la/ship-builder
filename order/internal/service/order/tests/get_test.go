@@ -65,10 +65,9 @@ func TestGet(t *testing.T) {
 
 			repository := mocks.NewRepository(t)
 			inventoryClient := mocks.NewInventoryClient(t)
-			paymentClient := mocks.NewPaymentClient(t)
 			tt.setupMock(repository)
 
-			service := orderservice.New(repository, inventoryClient, paymentClient)
+			service := orderservice.New(repository, inventoryClient, nil)
 
 			actual, err := service.Get(ctx, orderUUID)
 

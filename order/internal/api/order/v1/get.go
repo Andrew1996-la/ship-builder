@@ -19,7 +19,10 @@ func (a *api) GetOrder(ctx context.Context, params orderv1.GetOrderParams) (orde
 				Message: "заказ не найден",
 			}, nil
 		}
-		return nil, err
+		return &orderv1.GetOrderInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "внутренняя ошибка",
+		}, nil
 	}
 
 	return converter.ToDTO(order), nil

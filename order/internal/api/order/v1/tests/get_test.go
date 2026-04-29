@@ -44,7 +44,6 @@ func TestGetOrder(t *testing.T) {
 		name         string
 		setupMock    func(service *mocks.OrderService)
 		expectedType any
-		expectedErr  error
 	}{
 		{
 			name: "успешный сценарий",
@@ -71,7 +70,7 @@ func TestGetOrder(t *testing.T) {
 					Get(ctx, orderUUID).
 					Return(model.Order{}, assert.AnError)
 			},
-			expectedErr: assert.AnError,
+			expectedType: &orderv1.GetOrderInternalServerError{},
 		},
 	}
 
@@ -87,13 +86,6 @@ func TestGetOrder(t *testing.T) {
 			api := orderapi.New(service)
 
 			resp, err := api.GetOrder(ctx, orderv1.GetOrderParams{OrderUUID: orderUUID})
-
-			if tt.expectedErr != nil {
-				require.ErrorIs(t, err, tt.expectedErr)
-				assert.Nil(t, resp)
-
-				return
-			}
 
 			require.NoError(t, err)
 			require.IsType(t, tt.expectedType, resp)

@@ -24,7 +24,6 @@ func (r *repository) Get(
 	defer r.mu.RUnlock()
 
 	part, ok := r.parts[parsedUuid]
-
 	if !ok {
 		return model.Part{}, errs.ErrPartNotFound
 	}
