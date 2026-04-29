@@ -2,12 +2,13 @@ package tests
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	paymentapi "github.com/Andrew1996-la/ship-builder/payment/internal/api/payment/v1"
 	"github.com/Andrew1996-la/ship-builder/payment/internal/api/payment/v1/mocks"
@@ -24,10 +25,11 @@ func TestPayOrder(t *testing.T) {
 	transactionUUID := uuid.New()
 
 	tests := []struct {
-		name        string
-		req         *paymentv1.PayOrderRequest
-		setupMock   func(service *mocks.PaymentService)
-		expectedErr error
+		name         string
+		req          *paymentv1.PayOrderRequest
+		setupMock    func(service *mocks.PaymentService)
+		expectedErr  error
+		expectedCode codes.Code
 	}{
 		{
 			name: "успешный сценарий",
@@ -38,7 +40,7 @@ func TestPayOrder(t *testing.T) {
 			setupMock: func(service *mocks.PaymentService) {
 				service.EXPECT().
 					Pay(ctx, model.PayRequest{
-						OrderUUID:     orderUUID,
+						OrderUUID:     orderUUID.String(),
 						PaymentMethod: model.PaymentMethodCard,
 					}).
 					Return(model.Payment{
@@ -55,9 +57,15 @@ func TestPayOrder(t *testing.T) {
 				PaymentMethod: paymentv1.PaymentMethod_PAYMENT_METHOD_CARD,
 			},
 			setupMock: func(service *mocks.PaymentService) {
-				// service не должен вызываться, потому что converter упадёт раньше
+				service.EXPECT().
+					Pay(ctx, model.PayRequest{
+						OrderUUID:     "bad-uuid",
+						PaymentMethod: model.PaymentMethodCard,
+					}).
+					Return(model.Payment{}, errs.ErrInvalidOrderUUID)
 			},
-			expectedErr: errs.ErrInvalidOrderUUID,
+			expectedErr:  errs.ErrInvalidOrderUUID,
+			expectedCode: codes.InvalidArgument,
 		},
 		{
 			name: "ошибка сервиса",
@@ -68,12 +76,13 @@ func TestPayOrder(t *testing.T) {
 			setupMock: func(service *mocks.PaymentService) {
 				service.EXPECT().
 					Pay(ctx, model.PayRequest{
-						OrderUUID:     orderUUID,
+						OrderUUID:     orderUUID.String(),
 						PaymentMethod: model.PaymentMethodUnspecified,
 					}).
 					Return(model.Payment{}, errs.ErrInvalidPaymentMethod)
 			},
-			expectedErr: errs.ErrInvalidPaymentMethod,
+			expectedErr:  errs.ErrInvalidPaymentMethod,
+			expectedCode: codes.InvalidArgument,
 		},
 	}
 
@@ -92,7 +101,8 @@ func TestPayOrder(t *testing.T) {
 
 			if tt.expectedErr != nil {
 				require.Error(t, err)
-				assert.True(t, errors.Is(err, tt.expectedErr))
+				assert.Equal(t, tt.expectedCode, status.Code(err))
+				assert.Equal(t, tt.expectedErr.Error(), status.Convert(err).Message())
 				assert.Nil(t, resp)
 
 				return

@@ -15,13 +15,13 @@ func (r *repository) Get(
 	ctx context.Context,
 	id string,
 ) (model.Part, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	parsedUuid, err := uuid.Parse(id)
 	if err != nil {
 		return model.Part{}, errs.ErrInvalidUUID
 	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	part, ok := r.parts[parsedUuid]
 

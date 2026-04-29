@@ -78,7 +78,7 @@ func TestGet(t *testing.T) {
 
 			api := inventoryapi.New(service)
 
-			resp, err := api.Get(ctx, tt.req)
+			resp, err := api.GetPart(ctx, tt.req)
 
 			if tt.expectedErr != nil {
 				require.Error(t, err)

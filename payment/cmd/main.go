@@ -68,7 +68,7 @@ func main() {
 		defer signal.Stop(quit)
 
 		<-quit
-		slog.Info("остановка InventoryService")
+		slog.Info("остановка PaymentService")
 
 		grpcServer.GracefulStop()
 	}()

@@ -28,21 +28,21 @@ func TestPay(t *testing.T) {
 		{
 			name: "успешная оплата картой",
 			info: model.PayRequest{
-				OrderUUID:     orderUUID,
+				OrderUUID:     orderUUID.String(),
 				PaymentMethod: model.PaymentMethodCard,
 			},
 		},
 		{
 			name: "успешная оплата через СБП",
 			info: model.PayRequest{
-				OrderUUID:     orderUUID,
+				OrderUUID:     orderUUID.String(),
 				PaymentMethod: model.PaymentMethodSBP,
 			},
 		},
 		{
 			name: "неверный метод оплаты",
 			info: model.PayRequest{
-				OrderUUID:     orderUUID,
+				OrderUUID:     orderUUID.String(),
 				PaymentMethod: model.PaymentMethodUnspecified,
 			},
 			expectedErr: errs.ErrInvalidPaymentMethod,
@@ -68,7 +68,7 @@ func TestPay(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.info.OrderUUID, actual.OrderUUID)
+			assert.Equal(t, orderUUID, actual.OrderUUID)
 			assert.Equal(t, tt.info.PaymentMethod, actual.PaymentMethod)
 			assert.NotEqual(t, uuid.Nil, actual.TransactionUUID)
 		})

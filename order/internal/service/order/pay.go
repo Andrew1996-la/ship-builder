@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+
 	errs "github.com/Andrew1996-la/ship-builder/order/internal/errors"
 	"github.com/Andrew1996-la/ship-builder/order/internal/model"
 )
@@ -25,6 +27,10 @@ func (s *service) Pay(ctx context.Context, info model.PayOrderInfo) (model.Order
 	transactionUuid, err := s.paymentClient.PayOrder(ctx, info.OrderUUID, info.PaymentMethod)
 	if err != nil {
 		return model.Order{}, fmt.Errorf("оплатить заказ: %w", err)
+	}
+
+	if transactionUuid == uuid.Nil {
+		return model.Order{}, fmt.Errorf("пустой transaction uuid")
 	}
 
 	order.Status = model.OrderStatusPaid

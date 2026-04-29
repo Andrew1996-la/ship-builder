@@ -23,7 +23,7 @@ func (m PaymentMethod) IsValid() bool {
 }
 
 type PayRequest struct {
-	OrderUUID     uuid.UUID
+	OrderUUID     string
 	PaymentMethod PaymentMethod
 }
 

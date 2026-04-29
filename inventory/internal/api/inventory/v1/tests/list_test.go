@@ -85,7 +85,7 @@ func TestList(t *testing.T) {
 
 			api := inventoryapi.New(service)
 
-			resp, err := api.List(ctx, tt.req)
+			resp, err := api.ListParts(ctx, tt.req)
 
 			if tt.expectedErr != nil {
 				require.Error(t, err)

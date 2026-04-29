@@ -48,3 +48,13 @@ func ToModelPartType(partType inventoryv1.PartType) model.PartType {
 		return model.PartTypeUnspecified
 	}
 }
+
+func ToProtoParts(parts []model.Part) []*inventoryv1.Part {
+	res := make([]*inventoryv1.Part, 0, len(parts))
+
+	for _, p := range parts {
+		res = append(res, ToProtoPart(p))
+	}
+
+	return res
+}
