@@ -1,0 +1,2 @@
+// Code generated for Soborev service
+// © Soborev 2026.

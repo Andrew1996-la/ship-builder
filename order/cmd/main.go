@@ -13,7 +13,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	orderHandler "github.com/Andrew1996-la/ship-builder/order/pkg/handler"
+	orderapi "github.com/Andrew1996-la/ship-builder/order/internal/api/order/v1"
+	grpcclientInventory "github.com/Andrew1996-la/ship-builder/order/internal/client/grpc/inventory/v1"
+	grpcclientPayment "github.com/Andrew1996-la/ship-builder/order/internal/client/grpc/payment/v1"
+	orderrepo "github.com/Andrew1996-la/ship-builder/order/internal/repository/order"
+	orderservice "github.com/Andrew1996-la/ship-builder/order/internal/service/order"
+	orderv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/openapi/order/v1"
 	inventoryv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/inventory/v1"
 	paymentv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/payment/v1"
 )
@@ -29,32 +34,51 @@ const (
 
 func main() {
 	// Создать gRPC соединение с InventoryService
-	inventoryConn, err := grpc.NewClient(inventoryServiceAddress,
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	inventoryConn, err := grpc.NewClient(
+		inventoryServiceAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
 		slog.Error("не удалось подключиться к InventoryService", "error", err)
 		os.Exit(1)
 	}
+
 	defer inventoryConn.Close()
 
-	paymentConn, err := grpc.NewClient(paymentServiceAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	paymentConn, err := grpc.NewClient(
+		paymentServiceAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
 		slog.Error("не удалось подключиться к PaymentService", "error", err)
+		os.Exit(1)
 	}
+
 	defer paymentConn.Close()
 
-	// Создаём хранилище и обработчик
-	store := orderHandler.NewOrderStore()
-	h := orderHandler.NewOrderHandler(
+	repository := orderrepo.New()
+
+	inventoryClient := grpcclientInventory.New(
 		inventoryv1.NewInventoryServiceClient(inventoryConn),
-		paymentv1.NewPaymentServiceClient(paymentConn),
-		store,
 	)
 
+	paymentClient := grpcclientPayment.New(
+		paymentv1.NewPaymentServiceClient(paymentConn),
+	)
+
+	service := orderservice.New(
+		repository,
+		inventoryClient,
+		paymentClient,
+	)
+
+	api := orderapi.New(service)
+
 	// Создать OpenAPI сервер
-	orderServer, err := orderHandler.SetupServer(h)
+	orderServer, err := orderv1.NewServer(api)
 	if err != nil {
 		slog.Error("ошибка создания сервера OpenAPI", "error", err)
+		os.Exit(1)
 	}
 
 	// Настройка http server

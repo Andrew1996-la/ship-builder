@@ -12,7 +12,10 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
-	svc "github.com/Andrew1996-la/ship-builder/inventory/pkg/service"
+	inventoryapi "github.com/Andrew1996-la/ship-builder/inventory/internal/api/inventory/v1"
+	"github.com/Andrew1996-la/ship-builder/inventory/internal/interceptor"
+	partrepo "github.com/Andrew1996-la/ship-builder/inventory/internal/repository/part"
+	partservice "github.com/Andrew1996-la/ship-builder/inventory/internal/service/part"
 	inventoryv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/inventory/v1"
 )
 
@@ -35,6 +38,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(interceptor.ErrorInterceptor),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionIdle:     grpcMaxConnectionIdle,
 			MaxConnectionAge:      grpcMaxConnectionAge,
@@ -47,7 +51,11 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
-	inventoryv1.RegisterInventoryServiceServer(grpcServer, svc.NewInventoryServer())
+	repository := partrepo.NewWithSeed()
+	service := partservice.New(repository)
+	api := inventoryapi.New(service)
+
+	inventoryv1.RegisterInventoryServiceServer(grpcServer, api)
 
 	// Включаем reflection для postman/grpcurl
 	reflection.Register(grpcServer)
