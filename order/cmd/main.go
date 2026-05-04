@@ -78,7 +78,7 @@ func main() {
 
 	defer paymentConn.Close()
 
-	repository := orderrepo.New()
+	repository := orderrepo.New(pool)
 
 	inventoryClient := grpcclientInventory.New(
 		inventoryv1.NewInventoryServiceClient(inventoryConn),

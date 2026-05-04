@@ -75,7 +75,7 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
-	repository := partrepo.NewWithSeed()
+	repository := partrepo.New(pool)
 	service := partservice.New(repository)
 	api := inventoryapi.New(service)
 

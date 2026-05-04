@@ -1,20 +1,13 @@
 package part
 
-import (
-	"sync"
-
-	"github.com/google/uuid"
-
-	"github.com/Andrew1996-la/ship-builder/inventory/internal/repository/record"
-)
+import "github.com/jackc/pgx/v5/pgxpool"
 
 type repository struct {
-	mu    sync.RWMutex
-	parts map[uuid.UUID]record.Part
+	pool *pgxpool.Pool
 }
 
-func New(parts map[uuid.UUID]record.Part) *repository {
+func New(pool *pgxpool.Pool) *repository {
 	return &repository{
-		parts: parts,
+		pool: pool,
 	}
 }

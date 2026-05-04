@@ -2,71 +2,103 @@ package part
 
 import (
 	"context"
-	"sort"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	errs "github.com/Andrew1996-la/ship-builder/inventory/internal/errors"
 	"github.com/Andrew1996-la/ship-builder/inventory/internal/model"
-	"github.com/Andrew1996-la/ship-builder/inventory/internal/repository/converter"
 )
 
 func (r *repository) List(ctx context.Context, filter model.PartFilter) ([]model.Part, error) {
 	if len(filter.UUIDs) > 0 {
-		return r.listByUUIDs(filter.UUIDs)
+		return r.listByUUIDs(ctx, filter.UUIDs)
 	}
 
-	return r.listByType(filter.PartType)
+	return r.listByType(ctx, filter.PartType)
 }
 
-func (r *repository) listByUUIDs(uuids []string) ([]model.Part, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *repository) listByUUIDs(ctx context.Context, uuids []string) ([]model.Part, error) {
+	query := `
+		SELECT
+			uuid,
+			name,
+			description,
+			price,
+			part_type,
+			stock_quantity,
+			created_at
+		FROM parts
+		WHERE uuid = ANY($1)
+		ORDER BY name
+	`
 
-	parts := make([]model.Part, 0, len(uuids))
+	rows, err := r.pool.Query(ctx, query, uuids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	for _, strUuid := range uuids {
-		parsedUuid, err := uuid.Parse(strUuid)
-		if err != nil {
-			return nil, errs.ErrInvalidUUID
-		}
+	parts, err := scanParts(rows)
+	if err != nil {
+		return nil, err
+	}
 
-		part, ok := r.parts[parsedUuid]
-		if !ok {
-			return nil, errs.ErrPartNotFound
-		}
-
-		modelPart, err := converter.ToModelPart(part)
-		if err != nil {
-			return nil, err
-		}
-
-		parts = append(parts, modelPart)
+	if len(parts) != len(uuids) {
+		return nil, errs.ErrPartNotFound
 	}
 
 	return parts, nil
 }
 
-func (r *repository) listByType(partType model.PartType) ([]model.Part, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *repository) listByType(ctx context.Context, partType model.PartType) ([]model.Part, error) {
+	query := `
+		SELECT
+			uuid,
+			name,
+			description,
+			price,
+			part_type,
+			stock_quantity,
+			created_at
+		FROM parts
+		WHERE $1 = 'UNSPECIFIED' OR part_type = $1
+		ORDER BY name
+	`
 
-	parts := make([]model.Part, 0, len(r.parts))
+	rows, err := r.pool.Query(ctx, query, partType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	for _, part := range r.parts {
-		modelPart, err := converter.ToModelPart(part)
+	return scanParts(rows)
+}
+
+func scanParts(rows pgx.Rows) ([]model.Part, error) {
+	parts := make([]model.Part, 0)
+
+	for rows.Next() {
+		var part model.Part
+
+		err := rows.Scan(
+			&part.UUID,
+			&part.Name,
+			&part.Description,
+			&part.Price,
+			&part.PartType,
+			&part.StockQuantity,
+			&part.CreatedAt,
+		)
 		if err != nil {
 			return nil, err
 		}
 
-		if modelPart.PartType == partType || partType == model.PartTypeUnspecified {
-			parts = append(parts, modelPart)
-		}
+		parts = append(parts, part)
 	}
 
-	sort.Slice(parts, func(i, j int) bool {
-		return parts[i].Name < parts[j].Name
-	})
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return parts, nil
 }

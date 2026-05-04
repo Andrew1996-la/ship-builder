@@ -29,12 +29,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 
-	invApp "github.com/student/inventory/pkg/app"
-	"github.com/student/order/pkg/app"
-	"github.com/student/order/tests/testutil"
-	payApp "github.com/student/payment/pkg/app"
-	inventoryv1 "github.com/student/shared/pkg/proto/inventory/v1"
-	paymentv1 "github.com/student/shared/pkg/proto/payment/v1"
+	invApp "github.com/Andrew1996-la/ship-builder/inventory/pkg/app"
+	"github.com/Andrew1996-la/ship-builder/order/pkg/app"
+	"github.com/Andrew1996-la/ship-builder/order/tests/testutil"
+	payApp "github.com/Andrew1996-la/ship-builder/payment/pkg/app"
+	inventoryv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/inventory/v1"
+	paymentv1 "github.com/Andrew1996-la/ship-builder/shared/pkg/proto/payment/v1"
 )
 
 // Предзагруженные UUID и цены деталей (из migrations/inventory/00002_seed_parts.sql).
