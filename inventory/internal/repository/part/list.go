@@ -43,11 +43,31 @@ func (r *repository) listByUUIDs(ctx context.Context, uuids []string) ([]model.P
 		return nil, err
 	}
 
-	if len(parts) != len(uuids) {
+	if len(parts) != uniqueCount(uuids) {
 		return nil, errs.ErrPartNotFound
 	}
 
-	return parts, nil
+	partsByUUID := make(map[string]model.Part, len(parts))
+	for _, part := range parts {
+		partsByUUID[part.UUID.String()] = part
+	}
+
+	orderedParts := make([]model.Part, 0, len(uuids))
+	for _, rawUUID := range uuids {
+		orderedParts = append(orderedParts, partsByUUID[rawUUID])
+	}
+
+	return orderedParts, nil
+}
+
+func uniqueCount(values []string) int {
+	seen := make(map[string]struct{}, len(values))
+
+	for _, value := range values {
+		seen[value] = struct{}{}
+	}
+
+	return len(seen)
 }
 
 func (r *repository) listByType(ctx context.Context, partType model.PartType) ([]model.Part, error) {

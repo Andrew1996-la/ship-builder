@@ -42,5 +42,49 @@ func (r *repository) Get(ctx context.Context, orderUuid uuid.UUID) (model.Order,
 		return model.Order{}, err
 	}
 
+	if err = r.loadItems(ctx, &order); err != nil {
+		return model.Order{}, err
+	}
+
 	return order, nil
+}
+
+func (r *repository) loadItems(ctx context.Context, order *model.Order) error {
+	query := `
+		SELECT
+			part_uuid,
+			part_type
+		FROM order_items
+		WHERE order_uuid = $1
+	`
+
+	rows, err := r.pool.Query(ctx, query, order.OrderUUID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			partUUID uuid.UUID
+			partType string
+		)
+
+		if scanErr := rows.Scan(&partUUID, &partType); scanErr != nil {
+			return scanErr
+		}
+
+		switch partType {
+		case "HULL":
+			order.HullUUID = partUUID
+		case "ENGINE":
+			order.EngineUUID = partUUID
+		case "SHIELD":
+			order.ShieldUUID = &partUUID
+		case "WEAPON":
+			order.WeaponUUID = &partUUID
+		}
+	}
+
+	return rows.Err()
 }

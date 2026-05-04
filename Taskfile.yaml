@@ -134,10 +134,6 @@ tasks:
       - echo '🔄 Обновляем зависимости в модулях...'
       - for mod in {{.MODULES}}; do (cd "$mod" && go mod tidy -compat={{.GO_VERSION}}); done
 
-  # test:api:
-  #   desc: "Запускает API-тесты"
-  #   cmds:
-  #     - go test -v ./order/tests/...
 
   mockery:install:
     desc: "Устанавливает mockery"
@@ -337,4 +333,4 @@ tasks:
   test:api:
     desc: "Запускает интеграционные тесты API"
     cmds:
-      - go test -v -count=1 ./tests/...
+      - cd order && go test -v -count=1 ./tests/...
