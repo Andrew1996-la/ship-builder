@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -33,6 +34,27 @@ const (
 )
 
 func main() {
+	ctx := context.Background()
+	dbURI := os.Getenv("DB_URI")
+	if dbURI == "" {
+		slog.Error("dbURI не задан")
+		os.Exit(1)
+	}
+
+	pool, err := pgxpool.New(ctx, dbURI)
+	if err != nil {
+		slog.Error("создание пула соединений", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	if err = pool.Ping(ctx); err != nil {
+		slog.Error("PostgreSQL не отвечает", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("успешно подключились к PostgreSQL")
+
 	// Создать gRPC соединение с InventoryService
 	inventoryConn, err := grpc.NewClient(
 		inventoryServiceAddress,

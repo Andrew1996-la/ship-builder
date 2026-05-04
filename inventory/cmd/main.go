@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
@@ -31,6 +33,28 @@ const (
 )
 
 func main() {
+	ctx := context.Background()
+
+	dbURI := os.Getenv("DB_URI")
+	if dbURI == "" {
+		slog.Error("DB_URI не задан")
+		os.Exit(1)
+	}
+
+	pool, err := pgxpool.New(ctx, dbURI)
+	if err != nil {
+		slog.Error("не удалось подключиться к PostgreSQL", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	if err = pool.Ping(ctx); err != nil {
+		slog.Error("PostgreSQL не отвечает", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("успешно подключились к PostgreSQL")
+
 	lis, err := net.Listen("tcp", grpcAddress)
 	if err != nil {
 		slog.Error("не удалось создать listener", "error", err)
