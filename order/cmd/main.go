@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	trmpgx "github.com/avito-tech/go-transaction-manager/drivers/pgxv5/v2"
+	"github.com/avito-tech/go-transaction-manager/trm/v2/manager"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -55,6 +57,12 @@ func main() {
 
 	slog.Info("успешно подключились к PostgreSQL")
 
+	txManager, err := manager.New(trmpgx.NewDefaultFactory(pool))
+	if err != nil {
+		slog.Error("создание transaction manager", "error", err)
+		os.Exit(1)
+	}
+
 	// Создать gRPC соединение с InventoryService
 	inventoryConn, err := grpc.NewClient(
 		inventoryServiceAddress,
@@ -88,10 +96,11 @@ func main() {
 		paymentv1.NewPaymentServiceClient(paymentConn),
 	)
 
-	service := orderservice.New(
+	service := orderservice.NewWithTx(
 		repository,
 		inventoryClient,
 		paymentClient,
+		txManager,
 	)
 
 	api := orderapi.New(service)

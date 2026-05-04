@@ -42,7 +42,14 @@ func (s *service) Create(ctx context.Context, info model.CreateOrderInfo) (model
 		CreatedAt:  time.Now(),
 	}
 
-	err = s.repository.Create(ctx, order)
+	if s.txManager != nil {
+		err = s.txManager.Do(ctx, func(ctx context.Context) error {
+			return s.repository.Create(ctx, order)
+		})
+	} else {
+		err = s.repository.Create(ctx, order)
+	}
+
 	if err != nil {
 		return model.Order{}, fmt.Errorf("сохранить созданный заказ: %w", err)
 	}
