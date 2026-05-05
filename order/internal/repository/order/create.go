@@ -3,16 +3,22 @@ package order
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/Andrew1996-la/ship-builder/order/internal/model"
 )
 
-// func (r *repository) Create(ctx context.Context, order model.Order) error {
-// 	return r.txManager.Do(ctx, func(ctx context.Context) error {
-// 		return r.create(ctx, order)
-// 	})
-// }
-
 func (r *repository) Create(ctx context.Context, order model.Order) error {
+	if r.txManager == nil {
+		return r.create(ctx, order)
+	}
+
+	return r.txManager.Do(ctx, func(ctx context.Context) error {
+		return r.create(ctx, order)
+	})
+}
+
+func (r *repository) create(ctx context.Context, order model.Order) error {
 	db := r.getter.DefaultTrOrDB(ctx, r.pool)
 
 	query := `
@@ -43,34 +49,34 @@ func (r *repository) Create(ctx context.Context, order model.Order) error {
 
 	itemsQuery := `
 		INSERT INTO order_items (
+			uuid,
 			order_uuid,
 			part_uuid,
 			part_type,
-			price
+			price,
+			created_at
 		)
-		VALUES ($1, $2, $3, $4)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
-	_, err = db.Exec(ctx, itemsQuery, order.OrderUUID, order.HullUUID, "HULL", 0)
-	if err != nil {
-		return err
+	batch := &pgx.Batch{}
+	for _, item := range order.Items {
+		batch.Queue(
+			itemsQuery,
+			item.UUID,
+			item.OrderUUID,
+			item.PartUUID,
+			item.PartType.String(),
+			item.Price,
+			item.CreatedAt,
+		)
 	}
 
-	_, err = db.Exec(ctx, itemsQuery, order.OrderUUID, order.EngineUUID, "ENGINE", 0)
-	if err != nil {
-		return err
-	}
+	results := db.SendBatch(ctx, batch)
+	defer results.Close()
 
-	if order.ShieldUUID != nil {
-		_, err = db.Exec(ctx, itemsQuery, order.OrderUUID, *order.ShieldUUID, "SHIELD", 0)
-		if err != nil {
-			return err
-		}
-	}
-
-	if order.WeaponUUID != nil {
-		_, err = db.Exec(ctx, itemsQuery, order.OrderUUID, *order.WeaponUUID, "WEAPON", 0)
-		if err != nil {
+	for range order.Items {
+		if _, err = results.Exec(); err != nil {
 			return err
 		}
 	}

@@ -2,89 +2,82 @@ package order
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	errs "github.com/Andrew1996-la/ship-builder/order/internal/errors"
 	"github.com/Andrew1996-la/ship-builder/order/internal/model"
 )
 
 func (r *repository) Get(ctx context.Context, orderUuid uuid.UUID) (model.Order, error) {
+	db := r.getter.DefaultTrOrDB(ctx, r.pool)
+
 	query := `
 		SELECT
-			uuid,
-			total_price,
-			status,
-			transaction_uuid,
-			payment_method,
-			created_at
-		FROM orders
-		WHERE uuid = $1
+			o.uuid,
+			o.total_price,
+			o.status,
+			o.transaction_uuid,
+			o.payment_method,
+			o.created_at,
+			oi.uuid,
+			oi.order_uuid,
+			oi.part_uuid,
+			oi.part_type,
+			oi.price,
+			oi.created_at
+		FROM orders o
+		JOIN order_items oi ON oi.order_uuid = o.uuid
+		WHERE o.uuid = $1
+		ORDER BY oi.created_at, oi.uuid
 	`
 
 	var order model.Order
 
-	err := r.pool.QueryRow(ctx, query, orderUuid).Scan(
-		&order.OrderUUID,
-		&order.TotalPrice,
-		&order.Status,
-		&order.TransactionUUID,
-		&order.PaymentMethod,
-		&order.CreatedAt,
-	)
+	rows, err := db.Query(ctx, query, orderUuid)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return model.Order{}, errs.ErrOrderNotFound
-		}
-
 		return model.Order{}, err
-	}
-
-	if err = r.loadItems(ctx, &order); err != nil {
-		return model.Order{}, err
-	}
-
-	return order, nil
-}
-
-func (r *repository) loadItems(ctx context.Context, order *model.Order) error {
-	query := `
-		SELECT
-			part_uuid,
-			part_type
-		FROM order_items
-		WHERE order_uuid = $1
-	`
-
-	rows, err := r.pool.Query(ctx, query, order.OrderUUID)
-	if err != nil {
-		return err
 	}
 	defer rows.Close()
 
+	var found bool
+
 	for rows.Next() {
 		var (
-			partUUID uuid.UUID
+			item     model.OrderItem
 			partType string
 		)
 
-		if scanErr := rows.Scan(&partUUID, &partType); scanErr != nil {
-			return scanErr
+		err = rows.Scan(
+			&order.OrderUUID,
+			&order.TotalPrice,
+			&order.Status,
+			&order.TransactionUUID,
+			&order.PaymentMethod,
+			&order.CreatedAt,
+			&item.UUID,
+			&item.OrderUUID,
+			&item.PartUUID,
+			&partType,
+			&item.Price,
+			&item.CreatedAt,
+		)
+		if err != nil {
+			return model.Order{}, err
 		}
 
-		switch partType {
-		case "HULL":
-			order.HullUUID = partUUID
-		case "ENGINE":
-			order.EngineUUID = partUUID
-		case "SHIELD":
-			order.ShieldUUID = &partUUID
-		case "WEAPON":
-			order.WeaponUUID = &partUUID
-		}
+		item.PartType = model.PartType(partType)
+		order.Items = append(order.Items, item)
+		found = true
 	}
 
-	return rows.Err()
+	if err = rows.Err(); err != nil {
+		return model.Order{}, err
+	}
+
+	if !found {
+		return model.Order{}, errs.ErrOrderNotFound
+	}
+
+	return order, nil
 }

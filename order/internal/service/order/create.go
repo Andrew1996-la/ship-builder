@@ -19,40 +19,87 @@ func (s *service) Create(ctx context.Context, info model.CreateOrderInfo) (model
 		return model.Order{}, fmt.Errorf("получить детали для создания заказа: %w", err)
 	}
 
-	if len(parts) != len(partUuids) {
-		return model.Order{}, errs.ErrPartNotFound
-	}
-
-	var totalPrice int64
 	for _, part := range parts {
 		if part.StockQuantity <= 0 {
 			return model.Order{}, errs.ErrOutOfStock
 		}
-		totalPrice += part.Price
+	}
+
+	orderUUID := uuid.New()
+	createdAt := time.Now()
+
+	items, totalPrice, err := buildOrderItems(info, parts, orderUUID, createdAt)
+	if err != nil {
+		return model.Order{}, err
 	}
 
 	order := model.Order{
-		OrderUUID:  uuid.New(),
-		HullUUID:   info.HullUUID,
-		EngineUUID: info.EngineUUID,
-		ShieldUUID: info.ShieldUUID,
-		WeaponUUID: info.WeaponUUID,
+		OrderUUID:  orderUUID,
+		Items:      items,
 		TotalPrice: totalPrice,
 		Status:     model.OrderStatusPendingPayment,
-		CreatedAt:  time.Now(),
+		CreatedAt:  createdAt,
 	}
 
-	if s.txManager != nil {
-		err = s.txManager.Do(ctx, func(ctx context.Context) error {
-			return s.repository.Create(ctx, order)
-		})
-	} else {
-		err = s.repository.Create(ctx, order)
-	}
-
-	if err != nil {
+	if err = s.repository.Create(ctx, order); err != nil {
 		return model.Order{}, fmt.Errorf("сохранить созданный заказ: %w", err)
 	}
 
 	return order, nil
+}
+
+func buildOrderItems(
+	info model.CreateOrderInfo,
+	parts []model.Part,
+	orderUUID uuid.UUID,
+	createdAt time.Time,
+) ([]model.OrderItem, int64, error) {
+	partsByUUID := make(map[uuid.UUID]model.Part, len(parts))
+	for _, part := range parts {
+		partsByUUID[part.UUID] = part
+	}
+
+	requestedItems := []struct {
+		partUUID uuid.UUID
+		partType model.PartType
+	}{
+		{partUUID: info.HullUUID, partType: model.PartTypeHull},
+		{partUUID: info.EngineUUID, partType: model.PartTypeEngine},
+	}
+
+	if info.ShieldUUID != nil {
+		requestedItems = append(requestedItems, struct {
+			partUUID uuid.UUID
+			partType model.PartType
+		}{partUUID: *info.ShieldUUID, partType: model.PartTypeShield})
+	}
+
+	if info.WeaponUUID != nil {
+		requestedItems = append(requestedItems, struct {
+			partUUID uuid.UUID
+			partType model.PartType
+		}{partUUID: *info.WeaponUUID, partType: model.PartTypeWeapon})
+	}
+
+	items := make([]model.OrderItem, 0, len(requestedItems))
+	var totalPrice int64
+
+	for _, requestedItem := range requestedItems {
+		part, ok := partsByUUID[requestedItem.partUUID]
+		if !ok {
+			return nil, 0, errs.ErrPartNotFound
+		}
+
+		items = append(items, model.OrderItem{
+			UUID:      uuid.New(),
+			OrderUUID: orderUUID,
+			PartUUID:  requestedItem.partUUID,
+			PartType:  requestedItem.partType,
+			Price:     part.Price,
+			CreatedAt: createdAt,
+		})
+		totalPrice += part.Price
+	}
+
+	return items, totalPrice, nil
 }

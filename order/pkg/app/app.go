@@ -22,12 +22,11 @@ func NewHTTPHandler(
 	inventoryClient inventoryv1.InventoryServiceClient,
 	paymentClient paymentv1.PaymentServiceClient,
 ) (http.Handler, error) {
-	repository := orderrepo.New(pool)
-	service := orderservice.NewWithTx(
+	repository := orderrepo.New(pool, txManager)
+	service := orderservice.New(
 		repository,
 		grpcclientInventory.New(inventoryClient),
 		grpcclientPayment.New(paymentClient),
-		txManager,
 	)
 	api := orderapi.New(service)
 

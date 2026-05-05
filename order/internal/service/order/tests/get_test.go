@@ -22,9 +22,11 @@ func TestGet(t *testing.T) {
 	ctx := context.Background()
 	orderUUID := uuid.New()
 	expectedOrder := model.Order{
-		OrderUUID:  orderUUID,
-		HullUUID:   uuid.New(),
-		EngineUUID: uuid.New(),
+		OrderUUID: orderUUID,
+		Items: []model.OrderItem{
+			{PartUUID: uuid.New(), PartType: model.PartTypeHull, Price: 300},
+			{PartUUID: uuid.New(), PartType: model.PartTypeEngine, Price: 200},
+		},
 		TotalPrice: 500,
 		Status:     model.OrderStatusPendingPayment,
 		CreatedAt:  time.Now(),

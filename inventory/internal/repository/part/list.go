@@ -3,50 +3,52 @@ package part
 import (
 	"context"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 
-	errs "github.com/Andrew1996-la/ship-builder/inventory/internal/errors"
 	"github.com/Andrew1996-la/ship-builder/inventory/internal/model"
 )
 
 func (r *repository) List(ctx context.Context, filter model.PartFilter) ([]model.Part, error) {
-	if len(filter.UUIDs) > 0 {
-		return r.listByUUIDs(ctx, filter.UUIDs)
+	builder := sq.
+		Select(
+			"uuid",
+			"name",
+			"description",
+			"price",
+			"part_type",
+			"stock_quantity",
+			"created_at",
+		).
+		From("parts").
+		PlaceholderFormat(sq.Dollar)
+
+	builder = applyFilters(builder, filter)
+
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return nil, err
 	}
 
-	return r.listByType(ctx, filter.PartType)
-}
-
-func (r *repository) listByUUIDs(ctx context.Context, uuids []string) ([]model.Part, error) {
-	query := `
-		SELECT
-			uuid,
-			name,
-			description,
-			price,
-			part_type,
-			stock_quantity,
-			created_at
-		FROM parts
-		WHERE uuid = ANY($1)
-		ORDER BY name
-	`
-
-	rows, err := r.pool.Query(ctx, query, uuids)
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	parts, err := scanParts(rows)
+	parts, err := pgx.CollectRows(rows, pgx.RowToStructByName[model.Part])
 	if err != nil {
 		return nil, err
 	}
 
-	if len(parts) != uniqueCount(uuids) {
-		return nil, errs.ErrPartNotFound
+	if len(filter.UUIDs) > 0 {
+		parts = orderByRequestedUUIDs(parts, filter.UUIDs)
 	}
 
+	return parts, nil
+}
+
+func orderByRequestedUUIDs(parts []model.Part, uuids []string) []model.Part {
 	partsByUUID := make(map[string]model.Part, len(parts))
 	for _, part := range parts {
 		partsByUUID[part.UUID.String()] = part
@@ -54,71 +56,32 @@ func (r *repository) listByUUIDs(ctx context.Context, uuids []string) ([]model.P
 
 	orderedParts := make([]model.Part, 0, len(uuids))
 	for _, rawUUID := range uuids {
-		orderedParts = append(orderedParts, partsByUUID[rawUUID])
-	}
-
-	return orderedParts, nil
-}
-
-func uniqueCount(values []string) int {
-	seen := make(map[string]struct{}, len(values))
-
-	for _, value := range values {
-		seen[value] = struct{}{}
-	}
-
-	return len(seen)
-}
-
-func (r *repository) listByType(ctx context.Context, partType model.PartType) ([]model.Part, error) {
-	query := `
-		SELECT
-			uuid,
-			name,
-			description,
-			price,
-			part_type,
-			stock_quantity,
-			created_at
-		FROM parts
-		WHERE $1 = 'UNSPECIFIED' OR part_type = $1
-		ORDER BY name
-	`
-
-	rows, err := r.pool.Query(ctx, query, partType)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	return scanParts(rows)
-}
-
-func scanParts(rows pgx.Rows) ([]model.Part, error) {
-	parts := make([]model.Part, 0)
-
-	for rows.Next() {
-		var part model.Part
-
-		err := rows.Scan(
-			&part.UUID,
-			&part.Name,
-			&part.Description,
-			&part.Price,
-			&part.PartType,
-			&part.StockQuantity,
-			&part.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
+		part, ok := partsByUUID[rawUUID]
+		if !ok {
+			continue
 		}
 
-		parts = append(parts, part)
+		orderedParts = append(orderedParts, part)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
+	return orderedParts
+}
+
+func applyFilters(
+	builder sq.SelectBuilder,
+	filter model.PartFilter,
+) sq.SelectBuilder {
+	if len(filter.UUIDs) > 0 {
+		return builder.
+			Where(sq.Eq{"uuid": filter.UUIDs}).
+			OrderBy("name")
 	}
 
-	return parts, nil
+	if filter.PartType != model.PartTypeUnspecified {
+		return builder.
+			Where(sq.Eq{"part_type": filter.PartType}).
+			OrderBy("name")
+	}
+
+	return builder.OrderBy("name")
 }

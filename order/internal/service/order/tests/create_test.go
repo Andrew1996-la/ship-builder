@@ -55,10 +55,11 @@ func TestCreate(t *testing.T) {
 				repository.EXPECT().
 					Create(ctx, mock.MatchedBy(func(order model.Order) bool {
 						return order.OrderUUID != uuid.Nil &&
-							order.HullUUID == hullUUID &&
-							order.EngineUUID == engineUUID &&
-							order.ShieldUUID != nil && *order.ShieldUUID == shieldUUID &&
-							order.WeaponUUID != nil && *order.WeaponUUID == weaponUUID &&
+							len(order.Items) == 4 &&
+							orderItemMatches(order.Items[0], order.OrderUUID, hullUUID, model.PartTypeHull, 100) &&
+							orderItemMatches(order.Items[1], order.OrderUUID, engineUUID, model.PartTypeEngine, 200) &&
+							orderItemMatches(order.Items[2], order.OrderUUID, shieldUUID, model.PartTypeShield, 300) &&
+							orderItemMatches(order.Items[3], order.OrderUUID, weaponUUID, model.PartTypeWeapon, 400) &&
 							order.TotalPrice == 1000 &&
 							order.TransactionUUID == nil &&
 							order.PaymentMethod == nil &&
@@ -137,12 +138,11 @@ func TestCreate(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.NotEqual(t, uuid.Nil, actual.OrderUUID)
-			assert.Equal(t, hullUUID, actual.HullUUID)
-			assert.Equal(t, engineUUID, actual.EngineUUID)
-			require.NotNil(t, actual.ShieldUUID)
-			assert.Equal(t, shieldUUID, *actual.ShieldUUID)
-			require.NotNil(t, actual.WeaponUUID)
-			assert.Equal(t, weaponUUID, *actual.WeaponUUID)
+			require.Len(t, actual.Items, 4)
+			assert.True(t, orderItemMatches(actual.Items[0], actual.OrderUUID, hullUUID, model.PartTypeHull, 100))
+			assert.True(t, orderItemMatches(actual.Items[1], actual.OrderUUID, engineUUID, model.PartTypeEngine, 200))
+			assert.True(t, orderItemMatches(actual.Items[2], actual.OrderUUID, shieldUUID, model.PartTypeShield, 300))
+			assert.True(t, orderItemMatches(actual.Items[3], actual.OrderUUID, weaponUUID, model.PartTypeWeapon, 400))
 			assert.Equal(t, int64(1000), actual.TotalPrice)
 			assert.Nil(t, actual.TransactionUUID)
 			assert.Nil(t, actual.PaymentMethod)
@@ -150,4 +150,19 @@ func TestCreate(t *testing.T) {
 			assert.False(t, actual.CreatedAt.IsZero())
 		})
 	}
+}
+
+func orderItemMatches(
+	item model.OrderItem,
+	orderUUID uuid.UUID,
+	partUUID uuid.UUID,
+	partType model.PartType,
+	price int64,
+) bool {
+	return item.UUID != uuid.Nil &&
+		item.OrderUUID == orderUUID &&
+		item.PartUUID == partUUID &&
+		item.PartType == partType &&
+		item.Price == price &&
+		!item.CreatedAt.IsZero()
 }

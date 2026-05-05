@@ -43,6 +43,7 @@ func ToModelPart(part *inventoryv1.Part) (model.Part, error) {
 	return model.Part{
 		UUID:          id,
 		Name:          part.GetName(),
+		PartType:      model.PartType(part.GetPartType().String()),
 		Price:         part.GetPrice(),
 		StockQuantity: part.GetStockQuantity(),
 	}, nil
