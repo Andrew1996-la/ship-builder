@@ -1,20 +1,21 @@
 package order
 
 import (
-	"sync"
-
-	"github.com/google/uuid"
-
-	"github.com/Andrew1996-la/ship-builder/order/internal/repository/record"
+	trmpgx "github.com/avito-tech/go-transaction-manager/drivers/pgxv5/v2"
+	"github.com/avito-tech/go-transaction-manager/trm/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type repository struct {
-	mu     sync.RWMutex
-	orders map[uuid.UUID]record.Order
+	pool      *pgxpool.Pool
+	txManager trm.Manager
+	getter    *trmpgx.CtxGetter
 }
 
-func New() *repository {
+func New(pool *pgxpool.Pool, txManager trm.Manager) *repository {
 	return &repository{
-		orders: make(map[uuid.UUID]record.Order),
+		pool:      pool,
+		txManager: txManager,
+		getter:    trmpgx.DefaultCtxGetter,
 	}
 }

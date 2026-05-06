@@ -10,7 +10,7 @@ import (
 )
 
 func (s *service) List(ctx context.Context, filter model.PartFilter) ([]model.Part, error) {
-	for _, rawUUID := range filter.UUIDs {
+	for i, rawUUID := range filter.UUIDs {
 		id, err := uuid.Parse(rawUUID)
 		if err != nil {
 			return nil, errs.ErrInvalidUUID
@@ -19,7 +19,18 @@ func (s *service) List(ctx context.Context, filter model.PartFilter) ([]model.Pa
 		if id == uuid.Nil {
 			return nil, errs.ErrInvalidUUID
 		}
+
+		filter.UUIDs[i] = id.String()
 	}
 
-	return s.repository.List(ctx, filter)
+	parts, err := s.repository.List(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(filter.UUIDs) > 0 && len(filter.UUIDs) != len(parts) {
+		return nil, errs.ErrPartNotFound
+	}
+
+	return parts, nil
 }

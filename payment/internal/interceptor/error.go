@@ -19,6 +19,10 @@ func ErrorInterceptor(
 ) (any, error) {
 	resp, err := handler(ctx, req)
 	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return nil, err
+		}
+
 		return nil, mapError(err)
 	}
 

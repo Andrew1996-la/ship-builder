@@ -10,6 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	trmpgx "github.com/avito-tech/go-transaction-manager/drivers/pgxv5/v2"
+	"github.com/avito-tech/go-transaction-manager/trm/v2/manager"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -33,6 +36,33 @@ const (
 )
 
 func main() {
+	ctx := context.Background()
+	dbURI := os.Getenv("DB_URI")
+	if dbURI == "" {
+		slog.Error("dbURI не задан")
+		os.Exit(1)
+	}
+
+	pool, err := pgxpool.New(ctx, dbURI)
+	if err != nil {
+		slog.Error("создание пула соединений", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	if err = pool.Ping(ctx); err != nil {
+		slog.Error("PostgreSQL не отвечает", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("успешно подключились к PostgreSQL")
+
+	txManager, err := manager.New(trmpgx.NewDefaultFactory(pool))
+	if err != nil {
+		slog.Error("создание transaction manager", "error", err)
+		os.Exit(1)
+	}
+
 	// Создать gRPC соединение с InventoryService
 	inventoryConn, err := grpc.NewClient(
 		inventoryServiceAddress,
@@ -56,7 +86,7 @@ func main() {
 
 	defer paymentConn.Close()
 
-	repository := orderrepo.New()
+	repository := orderrepo.New(pool, txManager)
 
 	inventoryClient := grpcclientInventory.New(
 		inventoryv1.NewInventoryServiceClient(inventoryConn),

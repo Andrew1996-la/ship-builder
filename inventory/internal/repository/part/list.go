@@ -2,71 +2,86 @@ package part
 
 import (
 	"context"
-	"sort"
 
-	"github.com/google/uuid"
+	sq "github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
 
-	errs "github.com/Andrew1996-la/ship-builder/inventory/internal/errors"
 	"github.com/Andrew1996-la/ship-builder/inventory/internal/model"
-	"github.com/Andrew1996-la/ship-builder/inventory/internal/repository/converter"
 )
 
 func (r *repository) List(ctx context.Context, filter model.PartFilter) ([]model.Part, error) {
+	builder := sq.
+		Select(
+			"uuid",
+			"name",
+			"description",
+			"price",
+			"part_type",
+			"stock_quantity",
+			"created_at",
+		).
+		From("parts").
+		PlaceholderFormat(sq.Dollar)
+
+	builder = applyFilters(builder, filter)
+
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	parts, err := pgx.CollectRows(rows, pgx.RowToStructByName[model.Part])
+	if err != nil {
+		return nil, err
+	}
+
 	if len(filter.UUIDs) > 0 {
-		return r.listByUUIDs(filter.UUIDs)
+		parts = orderByRequestedUUIDs(parts, filter.UUIDs)
 	}
 
-	return r.listByType(filter.PartType)
+	return parts, nil
 }
 
-func (r *repository) listByUUIDs(uuids []string) ([]model.Part, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func orderByRequestedUUIDs(parts []model.Part, uuids []string) []model.Part {
+	partsByUUID := make(map[string]model.Part, len(parts))
+	for _, part := range parts {
+		partsByUUID[part.UUID.String()] = part
+	}
 
-	parts := make([]model.Part, 0, len(uuids))
-
-	for _, strUuid := range uuids {
-		parsedUuid, err := uuid.Parse(strUuid)
-		if err != nil {
-			return nil, errs.ErrInvalidUUID
-		}
-
-		part, ok := r.parts[parsedUuid]
+	orderedParts := make([]model.Part, 0, len(uuids))
+	for _, rawUUID := range uuids {
+		part, ok := partsByUUID[rawUUID]
 		if !ok {
-			return nil, errs.ErrPartNotFound
+			continue
 		}
 
-		modelPart, err := converter.ToModelPart(part)
-		if err != nil {
-			return nil, err
-		}
-
-		parts = append(parts, modelPart)
+		orderedParts = append(orderedParts, part)
 	}
 
-	return parts, nil
+	return orderedParts
 }
 
-func (r *repository) listByType(partType model.PartType) ([]model.Part, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	parts := make([]model.Part, 0, len(r.parts))
-
-	for _, part := range r.parts {
-		modelPart, err := converter.ToModelPart(part)
-		if err != nil {
-			return nil, err
-		}
-
-		if modelPart.PartType == partType || partType == model.PartTypeUnspecified {
-			parts = append(parts, modelPart)
-		}
+func applyFilters(
+	builder sq.SelectBuilder,
+	filter model.PartFilter,
+) sq.SelectBuilder {
+	if len(filter.UUIDs) > 0 {
+		return builder.
+			Where(sq.Eq{"uuid": filter.UUIDs}).
+			OrderBy("name")
 	}
 
-	sort.Slice(parts, func(i, j int) bool {
-		return parts[i].Name < parts[j].Name
-	})
+	if filter.PartType != model.PartTypeUnspecified {
+		return builder.
+			Where(sq.Eq{"part_type": filter.PartType}).
+			OrderBy("name")
+	}
 
-	return parts, nil
+	return builder.OrderBy("name")
 }

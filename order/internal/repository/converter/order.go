@@ -12,12 +12,21 @@ func ToRepoOrder(order model.Order) record.Order {
 		paymentMethod = &val
 	}
 
+	items := make([]record.OrderItem, 0, len(order.Items))
+	for _, item := range order.Items {
+		items = append(items, record.OrderItem{
+			UUID:      item.UUID,
+			OrderUUID: item.OrderUUID,
+			PartUUID:  item.PartUUID,
+			PartType:  item.PartType.String(),
+			Price:     item.Price,
+			CreatedAt: item.CreatedAt,
+		})
+	}
+
 	return record.Order{
 		OrderUUID:       order.OrderUUID,
-		HullUUID:        order.HullUUID,
-		EngineUUID:      order.EngineUUID,
-		ShieldUUID:      order.ShieldUUID,
-		WeaponUUID:      order.WeaponUUID,
+		Items:           items,
 		TotalPrice:      order.TotalPrice,
 		TransactionUUID: order.TransactionUUID,
 		PaymentMethod:   paymentMethod,
@@ -33,12 +42,21 @@ func ToModelOrder(order record.Order) model.Order {
 		paymentMethod = &val
 	}
 
+	items := make([]model.OrderItem, 0, len(order.Items))
+	for _, item := range order.Items {
+		items = append(items, model.OrderItem{
+			UUID:      item.UUID,
+			OrderUUID: item.OrderUUID,
+			PartUUID:  item.PartUUID,
+			PartType:  model.PartType(item.PartType),
+			Price:     item.Price,
+			CreatedAt: item.CreatedAt,
+		})
+	}
+
 	return model.Order{
 		OrderUUID:       order.OrderUUID,
-		HullUUID:        order.HullUUID,
-		EngineUUID:      order.EngineUUID,
-		ShieldUUID:      order.ShieldUUID,
-		WeaponUUID:      order.WeaponUUID,
+		Items:           items,
 		TotalPrice:      order.TotalPrice,
 		TransactionUUID: order.TransactionUUID,
 		PaymentMethod:   paymentMethod,

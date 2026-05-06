@@ -5,23 +5,36 @@ import (
 
 	errs "github.com/Andrew1996-la/ship-builder/order/internal/errors"
 	"github.com/Andrew1996-la/ship-builder/order/internal/model"
-	"github.com/Andrew1996-la/ship-builder/order/internal/repository/converter"
 )
 
 func (r *repository) Update(ctx context.Context, order model.Order) error {
-	r.mu.RLock()
-	_, ok := r.orders[order.OrderUUID]
-	r.mu.RUnlock()
+	query := `
+		UPDATE orders
+		SET
+			total_price = $2,
+			status = $3,
+			transaction_uuid = $4,
+			payment_method = $5,
+			updated_at = NOW()
+		WHERE uuid = $1
+	`
 
-	if !ok {
-		return errs.ErrOrderNotFound
+	result, err := r.pool.Exec(
+		ctx,
+		query,
+		order.OrderUUID,
+		order.TotalPrice,
+		order.Status,
+		order.TransactionUUID,
+		order.PaymentMethod,
+	)
+	if err != nil {
+		return err
 	}
 
-	repoOrder := converter.ToRepoOrder(order)
-
-	r.mu.Lock()
-	r.orders[order.OrderUUID] = repoOrder
-	r.mu.Unlock()
+	if result.RowsAffected() == 0 {
+		return errs.ErrOrderNotFound
+	}
 
 	return nil
 }

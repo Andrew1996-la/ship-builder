@@ -26,13 +26,17 @@ func TestGetOrder(t *testing.T) {
 	transactionUUID := uuid.New()
 	paymentMethod := model.PaymentMethodCard
 	createdAt := time.Now()
+	hullUUID := uuid.New()
+	engineUUID := uuid.New()
 
 	expectedOrder := model.Order{
-		OrderUUID:       orderUUID,
-		HullUUID:        uuid.New(),
-		EngineUUID:      uuid.New(),
-		ShieldUUID:      &shieldUUID,
-		WeaponUUID:      &weaponUUID,
+		OrderUUID: orderUUID,
+		Items: []model.OrderItem{
+			{PartUUID: hullUUID, PartType: model.PartTypeHull, Price: 100},
+			{PartUUID: engineUUID, PartType: model.PartTypeEngine, Price: 200},
+			{PartUUID: shieldUUID, PartType: model.PartTypeShield, Price: 300},
+			{PartUUID: weaponUUID, PartType: model.PartTypeWeapon, Price: 400},
+		},
 		TotalPrice:      1000,
 		TransactionUUID: &transactionUUID,
 		PaymentMethod:   &paymentMethod,
@@ -92,8 +96,8 @@ func TestGetOrder(t *testing.T) {
 
 			if dto, ok := resp.(*orderv1.OrderDto); ok {
 				assert.Equal(t, expectedOrder.OrderUUID, dto.OrderUUID)
-				assert.Equal(t, expectedOrder.HullUUID, dto.HullUUID)
-				assert.Equal(t, expectedOrder.EngineUUID, dto.EngineUUID)
+				assert.Equal(t, hullUUID, dto.HullUUID)
+				assert.Equal(t, engineUUID, dto.EngineUUID)
 				assert.Equal(t, expectedOrder.TotalPrice, dto.TotalPrice)
 				assert.Equal(t, orderv1.OrderStatusPAID, dto.Status)
 				assert.Equal(t, createdAt, dto.CreatedAt)
